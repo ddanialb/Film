@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>جزئیات - فارسی لند</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <a href="/" class="back-btn">→ بازگشت به جستجو</a>
+
+      <div id="loading" class="loading active">
+        <div class="loading-spinner"></div>
+        <p>در حال دریافت اطلاعات...</p>
+      </div>
+
+      <div id="content" class="details-content" style="display: none">
+        <!-- Movie/Series Info -->
+        <div id="movie-info" class="movie-info"></div>
+
+        <!-- Seasons & Episodes -->
+        <div id="seasons" class="seasons-container"></div>
+
+        <!-- Download Links -->
+        <div id="downloads" class="downloads-container"></div>
+      </div>
+
+      <div id="error" class="error-box" style="display: none"></div>
+    </div>
+
+    <script src="/js/details.js"></script>
+  </body>
+</html>

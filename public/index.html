@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>جستجو فارسی لند</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎬 جستجوی فیلم و سریال</h1>
+
+      <div class="search-box">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="نام فیلم یا سریال..."
+          autocomplete="off"
+        />
+        <button id="searchBtn">🔍</button>
+      </div>
+
+      <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p style="margin-top: 10px">در حال جستجو...</p>
+      </div>
+
+      <div id="results" class="results"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>

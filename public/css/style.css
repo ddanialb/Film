@@ -1,0 +1,728 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Tahoma, Arial, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  min-height: 100vh;
+  color: #fff;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Back Button */
+.back-btn {
+  display: inline-block;
+  color: #feca57;
+  text-decoration: none;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  transition: color 0.3s;
+}
+
+.back-btn:hover {
+  color: #ff9f43;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 2rem;
+}
+
+/* Search Box */
+.search-box {
+  display: flex;
+  max-width: 500px;
+  margin: 0 auto 30px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50px;
+  overflow: hidden;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 15px 25px;
+  border: none;
+  background: none;
+  color: #fff;
+  font-size: 1rem;
+  outline: none;
+}
+
+.search-box input::placeholder {
+  color: #888;
+}
+
+.search-box button {
+  padding: 15px 25px;
+  border: none;
+  background: #feca57;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: background 0.3s;
+}
+
+.search-box button:hover {
+  background: #ff9f43;
+}
+
+.search-box button:disabled {
+  background: #666;
+  cursor: not-allowed;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 40px;
+  display: none;
+}
+
+.loading.active {
+  display: block;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #feca57;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Results Grid */
+.results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px;
+  min-height: 100px;
+}
+
+/* Movie Card */
+.movie-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+  text-decoration: none;
+  color: #fff;
+  opacity: 0;
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.movie-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.movie-card .img-container {
+  width: 100%;
+  height: 220px;
+  position: relative;
+  background: linear-gradient(135deg, #2a2a4a, #1a1a3e);
+  overflow: hidden;
+}
+
+.movie-card .img-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3rem;
+  opacity: 0.3;
+  transition: opacity 0.3s;
+}
+
+.movie-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.movie-card img.loaded {
+  opacity: 1;
+}
+
+.movie-card img.loaded + .img-placeholder {
+  opacity: 0;
+}
+
+.movie-card .info {
+  padding: 12px;
+}
+
+.movie-card h3 {
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+  line-height: 1.4;
+  max-height: 2.8em;
+  overflow: hidden;
+}
+
+.movie-card span {
+  font-size: 0.8rem;
+  color: #feca57;
+}
+
+.no-results {
+  text-align: center;
+  padding: 40px;
+  color: #888;
+  grid-column: 1 / -1;
+}
+
+/* Skeleton */
+.skeleton-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.skeleton-img {
+  width: 100%;
+  height: 220px;
+  background: linear-gradient(90deg, #2a2a4a 25%, #3a3a5a 50%, #2a2a4a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-text {
+  padding: 12px;
+}
+
+.skeleton-line {
+  height: 14px;
+  background: linear-gradient(90deg, #2a2a4a 25%, #3a3a5a 50%, #2a2a4a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.skeleton-line:last-child {
+  width: 50%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ============ Details Page ============ */
+.details-content {
+  animation: fadeInUp 0.5s ease;
+}
+
+.movie-info {
+  margin-bottom: 30px;
+}
+
+.movie-header {
+  display: flex;
+  gap: 25px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  padding: 20px;
+}
+
+.movie-poster {
+  flex-shrink: 0;
+  width: 200px;
+}
+
+.movie-poster img {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.no-poster {
+  width: 100%;
+  height: 280px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+}
+
+.movie-details h1 {
+  font-size: 1.8rem;
+  margin-bottom: 5px;
+  text-align: right;
+}
+
+.original-title {
+  color: #888;
+  font-size: 1rem;
+  font-weight: normal;
+  margin-bottom: 15px;
+}
+
+.meta-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.meta-info span {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.meta-info .imdb {
+  background: #f5c518;
+  color: #000;
+}
+
+.description {
+  color: #ccc;
+  line-height: 1.8;
+  font-size: 0.95rem;
+}
+
+/* Section Title */
+.section-title {
+  font-size: 1.3rem;
+  margin: 25px 0 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Seasons */
+.season-box {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.season-header {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.season-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.season-header h3 {
+  flex: 1;
+  font-size: 1.1rem;
+}
+
+.episode-count {
+  color: #feca57;
+  margin-left: 15px;
+}
+
+.toggle-icon {
+  color: #888;
+  transition: transform 0.3s;
+}
+
+/* Episodes */
+.episodes-list {
+  padding: 0 20px 20px;
+}
+
+.episode-item {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.episode-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.episode-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.episode-title {
+  flex: 1;
+}
+
+.episode-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 15px 15px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Download Buttons */
+.downloads-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.download-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 8px;
+  color: #fff;
+  text-decoration: none;
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+}
+
+.download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+.download-btn .quality {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+.download-btn .size {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+}
+
+.download-btn .icon {
+  margin-right: auto;
+}
+
+.loading-text {
+  color: #feca57;
+}
+
+.success-text {
+  color: #2ecc71;
+}
+
+.error-text {
+  color: #e74c3c;
+}
+
+.no-links {
+  color: #888;
+  padding: 10px;
+}
+
+/* Error Box */
+.error-box {
+  text-align: center;
+  padding: 40px;
+  background: rgba(231, 76, 60, 0.1);
+  border-radius: 10px;
+}
+
+.error-box p {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .movie-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .movie-poster {
+    width: 150px;
+  }
+
+  .movie-details h1 {
+    text-align: center;
+  }
+
+  .meta-info {
+    justify-content: center;
+  }
+
+  .downloads-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* Episode Arrow */
+.episode-arrow {
+  color: #feca57;
+  font-size: 1.2rem;
+  transition: transform 0.3s;
+}
+
+.episode-header:hover .episode-arrow {
+  transform: translateX(-5px);
+}
+
+/* Episode Loading */
+.episode-loading {
+  color: #feca57;
+  padding: 15px;
+  text-align: center;
+  width: 100%;
+}
+
+/* Episode Links - Flex */
+.episode-links {
+  display: none;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 15px 15px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Better Download Button */
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 8px;
+  color: #fff;
+  text-decoration: none;
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+}
+
+.download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Season Box Improvements */
+.season-box {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  margin-bottom: 15px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.season-header {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  cursor: pointer;
+  transition: background 0.3s;
+  user-select: none;
+}
+
+.season-header:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Episode Item */
+.episode-item {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin: 0 15px 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.episode-item:last-child {
+  margin-bottom: 15px;
+}
+
+.episode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.episode-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.episode-title {
+  flex: 1;
+}
+
+/* No Links */
+.no-links {
+  color: #888;
+  padding: 15px;
+  text-align: center;
+  width: 100%;
+  margin: 0;
+}
+/* Synopsis Box */
+.synopsis-box {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  border-right: 3px solid #feca57;
+}
+
+.synopsis-box h3 {
+  font-size: 1rem;
+  margin-bottom: 10px;
+  color: #feca57;
+}
+
+.synopsis-box .description {
+  color: #ccc;
+  line-height: 1.8;
+  font-size: 0.95rem;
+  text-align: justify;
+}
+
+/* Meta Item */
+.meta-item {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  margin: 3px;
+}
+
+.meta-item.imdb {
+  background: #f5c518;
+  color: #000;
+  font-weight: bold;
+}
+
+/* Better Movie Header */
+.movie-header {
+  display: flex;
+  gap: 25px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  padding: 20px;
+  align-items: flex-start;
+}
+
+.movie-details {
+  flex: 1;
+}
+
+.movie-details h1 {
+  text-align: right;
+  margin-bottom: 5px;
+  font-size: 1.8rem;
+}
+
+.original-title {
+  color: #feca57;
+  font-size: 1.1rem;
+  font-weight: normal;
+  margin-bottom: 15px;
+  text-align: right;
+}
+
+.meta-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 15px;
+  justify-content: flex-start;
+}
+
+/* Movie Poster Better */
+.movie-poster {
+  flex-shrink: 0;
+  width: 200px;
+}
+
+.movie-poster img {
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.no-poster {
+  width: 100%;
+  height: 280px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .movie-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .movie-poster {
+    width: 150px;
+  }
+
+  .movie-details h1,
+  .original-title {
+    text-align: center;
+  }
+
+  .meta-info {
+    justify-content: center;
+  }
+
+  .synopsis-box {
+    border-right: none;
+    border-top: 3px solid #feca57;
+  }
+}
