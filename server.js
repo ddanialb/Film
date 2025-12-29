@@ -1,3 +1,9 @@
+// Polyfill برای File در محیط‌های Node قدیمی‌تر (مثل Node 18 روی بعضی هاست‌ها)
+// بعضی نسخه‌های کتابخانه undici انتظار وجود global.File را دارند و در غیر این صورت خطا می‌دهند.
+if (typeof global.File === "undefined") {
+  global.File = class File {};
+}
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
