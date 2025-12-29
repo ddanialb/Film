@@ -158,7 +158,20 @@ async function doLogin() {
         "❌ Response headers:",
         JSON.stringify(error.response.headers).substring(0, 200)
       );
+
+      // اگر سرور مقصد ما (مثلاً farsiland) روی IP سرور Render لاگین را بلاک کند
+      // معمولاً status = 403 برمی32د. در این حالت ما فقط isLoggedIn را false
+      // می32اریم و جلوی کرش / throw را می32یریم تا بقیه API ها کار کنند.
+      if (error.response.status === 403) {
+        console.error(
+          "⚠️ Upstream returned 403 (probably blocked bot/datacenter IP)."
+        );
+      }
     }
+
+    // در هر حالت، تلاش لاگین ناموفق بوده است
+    isLoggedIn = false;
+    AUTH_COOKIES = "";
     return false;
   }
 }
@@ -203,7 +216,12 @@ router.get("/auth-status", (req, res) => {
 // ============ لاگین دستی ============
 router.post("/login", async (req, res) => {
   const success = await doLogin();
-  res.json({ success, isLoggedIn });
+  // اگر farsiland ما را بلاک کند، success=false می32اند ولی خود سرور ما نباید 500 بدهد
+  // فقط وضعیت فعلی را گزارش می32هیم تا فرانت32ند خطای مناسب نشان بدهد.
+  res.json({
+    success,
+    isLoggedIn,
+  });
 });
 
 // ============ تست اتصال ============
@@ -660,9 +678,24 @@ router.get("/get-download", async (req, res) => {
       }
     }
 
-    res
-      .status(500)
-      .json({ success: false, error: error.message, needsLogin: !isLoggedIn });
+    // اگر upstream ما را با 403 بلاک کرده باشد، اینجا یک پیام واضح32تر برمی32دانیم
+    const status = error.response?.status;
+
+    if (status === 403) {
+      return res.status(403).json({
+        success: false,
+        error:
+          "دسترسی به سرور دانلود بلوکه شده است (403). احتمالاً IP سرور توسط farsiland یا Cloudflare مسدود شده.",
+        needsLogin: !isLoggedIn,
+        upstreamBlocked: true,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      needsLogin: !isLoggedIn,
+    });
   }
 });
 
