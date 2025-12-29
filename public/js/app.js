@@ -51,8 +51,6 @@ function showResults(items) {
 
   items.forEach((item, index) => {
     const hasImage = item.image && item.image.length > 5;
-
-    // لینک به صفحه جزئیات خودمون
     const detailsUrl = `/details.html?url=${encodeURIComponent(item.link)}`;
 
     html += `

@@ -77,8 +77,6 @@ h1 {
   margin-bottom: 30px;
   font-size: 2.2rem;
 }
-
-/* Search Box */
 .search-box {
   display: flex;
   max-width: 500px;
@@ -705,8 +703,6 @@ h1 {
   font-size: 1.2rem;
   margin-bottom: 20px;
 }
-
-/* Responsive */
 @media (max-width: 600px) {
   .movie-header {
     flex-direction: column;
@@ -925,7 +921,6 @@ h1 {
   font-size: 4rem;
 }
 
-/* Responsive */
 @media (max-width: 600px) {
   .movie-header {
     flex-direction: column;

@@ -10,7 +10,6 @@ const fileIdFromUrl = params.get("fileId");
 const titleFromUrl = params.get("title");
 
 if (fileIdFromUrl) {
-  // حالت ساده: فقط یک فایل با fileId مشخص پخش می‌شود
   if (qualityButton) qualityButton.style.display = "none";
   if (qualityMenu) qualityMenu.style.display = "none";
   if (titleFromUrl) {
@@ -18,7 +17,6 @@ if (fileIdFromUrl) {
   }
   playSingleFile(fileIdFromUrl);
 } else {
-  // حالت قبلی: چند کیفیت از localStorage
   const STREAM_KEY = "farsiland-current-stream";
 
   function loadStreamData() {
@@ -74,8 +72,6 @@ function initPlayer(data) {
   }
 
   buildQualityMenu(data.downloads);
-
-  // پیشفرض: بهترین کیفیت (بیشترین عدد)
   const sorted = [...data.downloads].sort(
     (a, b) => parseInt(b.quality) - parseInt(a.quality)
   );

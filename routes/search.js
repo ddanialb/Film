@@ -402,21 +402,51 @@ router.get("/details", async (req, res) => {
       seasons = extractSeasons($);
       if (seasons && seasons.length > 0) {
         seasonsCount = String(seasons.length);
+        let selectedSeason = null;
+        let maxSeasonNum = -1;
+        for (const s of seasons) {
+          if (!s || !s.number) continue;
+          const m = String(s.number).match(/(\d+)/);
+          const num = m ? parseInt(m[1], 10) : NaN;
+          if (!isNaN(num) && num > maxSeasonNum) {
+            maxSeasonNum = num;
+            selectedSeason = s;
+          }
+        }
 
-        const lastSeason = seasons[seasons.length - 1];
-        if (lastSeason) {
-          lastSeasonNumber = lastSeason.number || String(seasons.length);
+        if (!selectedSeason) {
+          selectedSeason = seasons[0];
+        }
+
+        if (selectedSeason) {
+          lastSeasonNumber = selectedSeason.number || String(seasons.length);
+
           if (
-            Array.isArray(lastSeason.episodes) &&
-            lastSeason.episodes.length > 0
+            Array.isArray(selectedSeason.episodes) &&
+            selectedSeason.episodes.length > 0
           ) {
-            const lastEpisode =
-              lastSeason.episodes[lastSeason.episodes.length - 1];
-            const epNumMatch = lastEpisode.title.match(/(\d+)/);
+            let selectedEpisode = null;
+            let maxEpNum = -1;
+            for (const ep of selectedSeason.episodes) {
+              if (!ep || !ep.title) continue;
+              const m = ep.title.match(/(\d+)/);
+              const num = m ? parseInt(m[1], 10) : NaN;
+              if (!isNaN(num) && num > maxEpNum) {
+                maxEpNum = num;
+                selectedEpisode = ep;
+              }
+            }
+
+            if (!selectedEpisode) {
+              selectedEpisode =
+                selectedSeason.episodes[selectedSeason.episodes.length - 1];
+            }
+
+            const epNumMatch = selectedEpisode.title.match(/(\d+)/);
             lastEpisodeNumber = epNumMatch
               ? epNumMatch[1]
-              : String(lastSeason.episodes.length);
-            episodesCount = String(lastSeason.episodes.length);
+              : String(selectedSeason.episodes.length);
+            episodesCount = String(selectedSeason.episodes.length);
           }
         }
       }
@@ -512,10 +542,7 @@ function extractDownloads($) {
       let quality = $row.find(".quality, strong.quality").text().trim();
       if (!quality) quality = $row.find("strong").first().text().trim();
       const qualityMatch = quality.match(/(\d{3,4})/);
-      // فقط اگر عدد کیفیت پیدا شد، نگه میداریم؛ در غیر این صورت خالی میماند
       quality = qualityMatch ? qualityMatch[1] : "";
-
-      // اگر حجم پیدا نشد خالی بماند تا در UI چیزی نمایش داده نشود
       let size = "";
       $row.find("td").each((idx, td) => {
         const text = $(td).text().trim();

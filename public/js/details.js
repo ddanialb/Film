@@ -34,7 +34,6 @@ async function loadDetails(url) {
 
 const STREAM_KEY = "farsiland-current-stream";
 
-// باز کردن پلیر آنلاین بر اساس لیست کیفیت‌ها (دانلودها)
 function openOnlinePlayerWithDownloads(title, downloads) {
   if (!downloads || downloads.length === 0) return;
 
@@ -72,12 +71,64 @@ function showDetails(data) {
   if (data.imdb) {
     metaHtml += `<span class="meta-item imdb">⭐ ${data.imdb}</span>`;
   }
-  // برای سریال: فصل آخر و آخرین قسمت آن فصل
-  if (data.isSeries && data.lastSeasonNumber && data.lastEpisodeNumber) {
-    metaHtml += `<span class="meta-item">📺 فصل ${data.lastSeasonNumber}</span>`;
-    metaHtml += `<span class="meta-item">🎬 قسمت ${data.lastEpisodeNumber}</span>`;
+  let lastSeasonNumber = null;
+  let lastEpisodeNumber = null;
+
+  if (data.isSeries && Array.isArray(data.seasons) && data.seasons.length > 0) {
+    let selectedSeason = null;
+    let maxSeasonNum = -1;
+
+    data.seasons.forEach((s) => {
+      if (!s || !s.number) return;
+      const m = String(s.number).match(/(\d+)/);
+      const num = m ? parseInt(m[1], 10) : NaN;
+      if (!isNaN(num) && num > maxSeasonNum) {
+        maxSeasonNum = num;
+        selectedSeason = s;
+      }
+    });
+
+    if (!selectedSeason) {
+      selectedSeason = data.seasons[0];
+    }
+
+    if (selectedSeason) {
+      lastSeasonNumber = selectedSeason.number || String(data.seasons.length);
+
+      if (
+        Array.isArray(selectedSeason.episodes) &&
+        selectedSeason.episodes.length > 0
+      ) {
+        let selectedEpisode = null;
+        let maxEpNum = -1;
+
+        selectedSeason.episodes.forEach((ep) => {
+          if (!ep || !ep.title) return;
+          const m = ep.title.match(/(\d+)/);
+          const num = m ? parseInt(m[1], 10) : NaN;
+          if (!isNaN(num) && num > maxEpNum) {
+            maxEpNum = num;
+            selectedEpisode = ep;
+          }
+        });
+
+        if (!selectedEpisode) {
+          selectedEpisode =
+            selectedSeason.episodes[selectedSeason.episodes.length - 1];
+        }
+
+        const epNumMatch = selectedEpisode.title.match(/(\d+)/);
+        lastEpisodeNumber = epNumMatch
+          ? epNumMatch[1]
+          : String(selectedSeason.episodes.length);
+      }
+    }
+  }
+
+  if (data.isSeries && lastSeasonNumber && lastEpisodeNumber) {
+    metaHtml += `<span class="meta-item">📺 فصل ${lastSeasonNumber}</span>`;
+    metaHtml += `<span class="meta-item">🎬 قسمت ${lastEpisodeNumber}</span>`;
   } else {
-    // برای فیلم یا اگر داده نبود: تعداد کلی فصل/قسمت
     if (data.seasonsCount) {
       metaHtml += `<span class="meta-item">📺 ${data.seasonsCount} فصل</span>`;
     }
@@ -122,17 +173,11 @@ function showDetails(data) {
       </div>
     </div>
   `;
-
-  // فصل‌ها و قسمت‌ها
   if (data.isSeries && data.seasons && data.seasons.length > 0) {
     showSeasons(data.seasons);
   }
-
-  // لینک‌های دانلود
   if (data.downloads && data.downloads.length > 0) {
     showDownloads(data.downloads, "لینک‌های دانلود");
-
-    // ذخیره اطلاعات برای پخش آنلاین
     setupOnlinePlayerButton({
       title: data.title,
       image: data.image,
@@ -234,8 +279,6 @@ async function loadEpisode(seasonIndex, episodeIndex, encodedUrl) {
       });
       linksContainer.innerHTML = html;
       linksContainer.dataset.loaded = "true";
-
-      // یک دکمه پخش آنلاین برای کل اپیزود
       const onlineWrapper = document.createElement("div");
       onlineWrapper.className = "online-play-wrapper";
       const onlineBtn = document.createElement("a");
@@ -279,8 +322,6 @@ function showDownloads(downloads, title) {
   html += "</div>";
   downloadsContainer.innerHTML = html;
 }
-
-// تنظیم دکمه پخش آنلاین برای فیلم‌هایی که لینک دانلود دارند
 function setupOnlinePlayerButton(movieData) {
   if (!movieData || !movieData.downloads || movieData.downloads.length === 0)
     return;
@@ -294,8 +335,6 @@ function setupOnlinePlayerButton(movieData) {
     e.preventDefault();
     openOnlinePlayerWithDownloads(movieData.title, movieData.downloads);
   });
-
-  // اضافه کردن دکمه بالای لینکهای دانلود
   if (downloadsContainer) {
     const wrapper = document.createElement("div");
     wrapper.className = "online-play-wrapper";

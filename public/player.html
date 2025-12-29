@@ -304,7 +304,7 @@
     <div class="container">
       <header class="header">
         <div class="logo">▶️</div>
-        <h1>فیلم بینا Player</h1>
+        <h1>فیلم بینا</h1>
         <p class="subtitle">
           لینک ویدیو را وارد کنید یا از جزئیات فیلم روی پخش آنلاین بزنید
         </p>
@@ -468,14 +468,11 @@
           if (idx === 0) btn.classList.add("active");
           qualityBar.appendChild(btn);
         });
-
-        // پخش خودکار بهترین کیفیت
         if (sorted[0]) {
           playFromFileId(sorted[0]);
         }
       }
 
-      // اگر از جزئیات با ?url= آمده باشیم، خودکار پخش کن
       const params = new URLSearchParams(window.location.search);
       const autoUrl = params.get("url");
       if (autoUrl) {
@@ -488,8 +485,6 @@
           if (streamData.title) {
             urlInput.placeholder = `پخش آنلاین ${streamData.title}`;
           }
-
-          // اگر از صفحه جزئیات آمده باشیم، لینک بازگشت به همان صفحه را فعال کن
           if (streamData.source && backDetails) {
             backDetails.style.display = "inline-block";
             backDetails.onclick = (e) => {
