@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>فیلم بینا - پخش آنلاین</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --primary: #6366f1;
+        --secondary: #8b5cf6;
+        --bg: #0a0a0f;
+        --card: rgba(20, 20, 30, 0.9);
+        --border: rgba(255, 255, 255, 0.08);
+        --text: #f1f1f1;
+        --muted: #888;
+        --font-shabnam: "ShabnamLightFD", system-ui, -apple-system, sans-serif;
+      }
+
+      @font-face {
+        font-family: "ShabnamLightFD";
+        src: url("/fonts/Shabnam-Light-FD.woff2") format("woff2"),
+          url("/fonts/Shabnam-Light-FD.woff") format("woff"),
+          url("/fonts/Shabnam-Light-FD.ttf") format("truetype"),
+          url("/fonts/Shabnam-Light-FD.eot");
+        font-weight: 300;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      body {
+        font-family: var(--font-shabnam);
+        background: var(--bg);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 15px;
+      }
+
+      .container {
+        background: var(--card);
+        padding: 30px;
+        border-radius: 20px;
+        width: 100%;
+        max-width: 900px;
+        border: 1px solid var(--border);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 25px;
+      }
+
+      .logo {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin-bottom: 12px;
+      }
+
+      h1 {
+        color: var(--text);
+        font-size: 26px;
+        font-weight: 700;
+      }
+
+      .subtitle {
+        margin-top: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      input {
+        flex: 1;
+        padding: 15px 18px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.3);
+        color: var(--text);
+        font-size: 15px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      input:focus {
+        border-color: var(--primary);
+      }
+
+      input::placeholder {
+        color: var(--muted);
+      }
+
+      .btn {
+        padding: 15px 30px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        transition: transform 0.2s, opacity 0.2s;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .loader {
+        display: none;
+        justify-content: center;
+        padding: 30px;
+      }
+
+      .loader.show {
+        display: flex;
+      }
+
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .video-container {
+        display: none;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #000;
+        margin-top: 10px;
+      }
+
+      .video-container.show {
+        display: block;
+      }
+
+      video {
+        width: 100%;
+        display: block;
+      }
+
+      .status {
+        text-align: center;
+        font-size: 14px;
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 8px;
+      }
+
+      .status:empty {
+        display: none;
+      }
+
+      .status.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #f87171;
+      }
+
+      .status.success {
+        background: rgba(34, 197, 94, 0.1);
+        color: #4ade80;
+      }
+
+      .status.loading {
+        background: rgba(234, 179, 8, 0.1);
+        color: #facc15;
+      }
+
+      .features {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-top: 25px;
+      }
+
+      .feature {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+      }
+
+      .feature-icon {
+        font-size: 22px;
+        margin-bottom: 6px;
+        display: block;
+      }
+
+      .feature-text {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .quality-bar {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .quality-pill {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.5);
+        color: var(--text);
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .quality-pill.active {
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.3);
+      }
+
+      .back-home {
+        display: inline-block;
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      .back-home:hover {
+        color: var(--text);
+      }
+
+      .footer {
+        margin-top: 25px;
+        text-align: center;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
+
+      .credit {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .credit-name {
+        background: linear-gradient(135deg, #a78bfa, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 20px;
+        }
+
+        .input-group {
+          flex-direction: column;
+        }
+
+        .btn {
+          width: 100%;
+        }
+
+        .features {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <div class="logo">▶️</div>
+        <h1>فیلم بینا Player</h1>
+        <p class="subtitle">
+          لینک ویدیو را وارد کنید یا از جزئیات فیلم روی پخش آنلاین بزنید
+        </p>
+        <a href="/" class="back-home">← بازگشت به صفحه اصلی</a>
+        <a
+          href="#"
+          id="backDetails"
+          class="back-home"
+          style="margin-right: 10px; display: none"
+          >← بازگشت به صفحه فیلم/سریال</a
+        >
+      </header>
+
+      <div class="input-group">
+        <input type="text" id="url" placeholder="لینک ویدیو را وارد کنید..." />
+        <button class="btn" id="btn">▶ پخش</button>
+      </div>
+
+      <div class="loader" id="loader">
+        <div class="spinner"></div>
+      </div>
+
+      <div class="video-container" id="player">
+        <video id="video" controls playsinline></video>
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <div class="quality-bar" id="qualityBar"></div>
+
+      <div class="features">
+        <div class="feature">
+          <span class="feature-icon">⚡</span>
+          <span class="feature-text">پخش مستقیم</span>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">🎬</span>
+          <span class="feature-text">سازگار با اکثر فرمتها</span>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">📱</span>
+          <span class="feature-text">قابل استفاده روی موبایل و TV</span>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">🔁</span>
+          <span class="feature-text">استفاده از کنترلهای خود مرورگر</span>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="credit">
+          <span>💜</span>
+          <span>توسط</span>
+          <span class="credit-name">آقا دَنی</span>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const urlInput = $("url");
+      const btn = $("btn");
+      const loader = $("loader");
+      const player = $("player");
+      const video = $("video");
+      const statusEl = $("status");
+      const qualityBar = $("qualityBar");
+      const backDetails = $("backDetails");
+
+      const STREAM_KEY = "farsiland-current-stream";
+
+      const setStatus = (msg, type) => {
+        statusEl.textContent = msg;
+        statusEl.className = "status " + type;
+      };
+
+      const loadStreamData = () => {
+        try {
+          const raw = localStorage.getItem(STREAM_KEY);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch (e) {
+          return null;
+        }
+      };
+
+      function play(link) {
+        if (!link) return setStatus("لینک را وارد کنید", "error");
+
+        btn.disabled = true;
+        loader.classList.add("show");
+        player.classList.remove("show");
+        setStatus("در حال بارگذاری...", "loading");
+
+        video.src = "/stream?url=" + encodeURIComponent(link);
+
+        video.onloadeddata = () => {
+          loader.classList.remove("show");
+          player.classList.add("show");
+          setStatus("آماده پخش ✓", "success");
+          btn.disabled = false;
+          video.play().catch(() => {});
+        };
+
+        video.onerror = () => {
+          loader.classList.remove("show");
+          setStatus("خطا در بارگذاری", "error");
+          btn.disabled = false;
+        };
+      }
+
+      btn.onclick = () => {
+        const link = urlInput.value.trim();
+        play(link);
+      };
+
+      urlInput.onkeypress = (e) => {
+        if (e.key === "Enter") btn.click();
+      };
+
+      async function playFromFileId(dl) {
+        if (!dl || !dl.fileId) return;
+
+        try {
+          const res = await fetch(
+            `/api/get-download?fileId=${encodeURIComponent(dl.fileId)}`
+          );
+          const data = await res.json();
+
+          if (data.success && data.downloadUrl) {
+            play(data.downloadUrl);
+          } else {
+            setStatus("❌ خطا در دریافت لینک پخش آنلاین", "error");
+          }
+        } catch (e) {
+          setStatus("❌ خطا در اتصال برای پخش آنلاین", "error");
+        }
+      }
+
+      function initQualitySelector(streamData) {
+        if (!streamData || !Array.isArray(streamData.downloads)) return;
+
+        qualityBar.innerHTML = "";
+        const sorted = streamData.downloads
+          .slice()
+          .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+
+        sorted.forEach((dl, idx) => {
+          const btn = document.createElement("button");
+          btn.className = "quality-pill";
+          const qLabel = dl.quality ? `${dl.quality}p` : "کیفیت";
+          const sizePart = dl.size ? ` • ${dl.size}` : "";
+          btn.textContent = qLabel + sizePart;
+          btn.onclick = () => {
+            Array.from(qualityBar.children).forEach((c) =>
+              c.classList.remove("active")
+            );
+            btn.classList.add("active");
+            playFromFileId(dl);
+          };
+          if (idx === 0) btn.classList.add("active");
+          qualityBar.appendChild(btn);
+        });
+
+        // پخش خودکار بهترین کیفیت
+        if (sorted[0]) {
+          playFromFileId(sorted[0]);
+        }
+      }
+
+      // اگر از جزئیات با ?url= آمده باشیم، خودکار پخش کن
+      const params = new URLSearchParams(window.location.search);
+      const autoUrl = params.get("url");
+      if (autoUrl) {
+        const decoded = decodeURIComponent(autoUrl);
+        urlInput.value = decoded;
+        play(decoded);
+      } else {
+        const streamData = loadStreamData();
+        if (streamData) {
+          if (streamData.title) {
+            urlInput.placeholder = `پخش آنلاین ${streamData.title}`;
+          }
+
+          // اگر از صفحه جزئیات آمده باشیم، لینک بازگشت به همان صفحه را فعال کن
+          if (streamData.source && backDetails) {
+            backDetails.style.display = "inline-block";
+            backDetails.onclick = (e) => {
+              e.preventDefault();
+              window.location.href = streamData.source;
+            };
+          }
+
+          if (streamData.downloads && streamData.downloads.length) {
+            initQualitySelector(streamData);
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

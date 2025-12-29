@@ -4,20 +4,61 @@
   box-sizing: border-box;
 }
 
+:root {
+  --font-shabnam: "ShabnamLightFD", Tahoma, Arial, sans-serif;
+}
+
+@font-face {
+  font-family: "ShabnamLightFD";
+  src: url("../fonts/Shabnam-Light-FD.woff2") format("woff2"),
+    url("../fonts/Shabnam-Light-FD.woff") format("woff"),
+    url("../fonts/Shabnam-Light-FD.ttf") format("truetype"),
+    url("../fonts/Shabnam-Light-FD.eot");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@media (min-width: 1920px) {
+  body {
+    padding: 40px;
+  }
+
+  h1 {
+    font-size: 3rem;
+  }
+
+  .movie-card .img-container {
+    height: 260px;
+  }
+
+  .movie-card h3 {
+    font-size: 1.1rem;
+  }
+}
+
 body {
-  font-family: Tahoma, Arial, sans-serif;
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  font-family: var(--font-shabnam);
+  background: radial-gradient(
+    circle at top,
+    #273c75 0,
+    #1a1a2e 40%,
+    #0b0b1c 100%
+  );
   min-height: 100vh;
   color: #fff;
   padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
 }
 
-/* Back Button */
 .back-btn {
   display: inline-block;
   color: #feca57;
@@ -34,7 +75,7 @@ body {
 h1 {
   text-align: center;
   margin-bottom: 30px;
-  font-size: 2rem;
+  font-size: 2.2rem;
 }
 
 /* Search Box */
@@ -45,6 +86,7 @@ h1 {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50px;
   overflow: hidden;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
 }
 
 .search-box input {
@@ -79,7 +121,6 @@ h1 {
   cursor: not-allowed;
 }
 
-/* Loading */
 .loading {
   text-align: center;
   padding: 40px;
@@ -106,15 +147,26 @@ h1 {
   }
 }
 
-/* Results Grid */
 .results {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 20px;
   min-height: 100px;
+  margin-bottom: 20px;
 }
 
-/* Movie Card */
+@media (min-width: 1200px) {
+  .results {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .movie-card {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
@@ -124,6 +176,7 @@ h1 {
   color: #fff;
   opacity: 0;
   animation: fadeInUp 0.5s ease forwards;
+  backdrop-filter: blur(6px);
 }
 
 @keyframes fadeInUp {
@@ -203,7 +256,6 @@ h1 {
   grid-column: 1 / -1;
 }
 
-/* Skeleton */
 .skeleton-card {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
@@ -244,9 +296,174 @@ h1 {
   }
 }
 
-/* ============ Details Page ============ */
 .details-content {
   animation: fadeInUp 0.5s ease;
+}
+
+.player-page {
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
+.player-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 25px;
+  margin-top: 20px;
+}
+
+.video-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 15px;
+}
+
+.video-wrapper {
+  position: relative;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.video-wrapper video {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #000;
+}
+
+.player-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.player-title {
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent);
+  font-size: 0.95rem;
+}
+
+.player-controls {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 14px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.7), transparent);
+}
+
+.quality-selector {
+  position: relative;
+  pointer-events: auto;
+}
+
+.quality-btn {
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.quality-menu {
+  position: absolute;
+  right: 0;
+  bottom: 110%;
+  min-width: 160px;
+  background: rgba(10, 10, 25, 0.95);
+  border-radius: 10px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+  padding: 6px 0;
+  display: none;
+  z-index: 10;
+}
+
+.quality-menu.open {
+  display: block;
+}
+
+.quality-menu-item {
+  width: 100%;
+  text-align: right;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.quality-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.player-status {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.player-info {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 15px;
+}
+
+.player-meta {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.player-poster img {
+  width: 120px;
+  border-radius: 10px;
+}
+
+.player-text h2 {
+  margin-bottom: 10px;
+}
+
+.player-text p {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.online-play-wrapper {
+  margin-top: 25px;
+  margin-bottom: 10px;
+}
+
+.online-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #00c9ff, #92fe9d);
+  color: #000;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 0.95rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.online-play-btn:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 900px) {
+  body {
+    padding: 15px;
+  }
+
+  .player-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .movie-info {
@@ -320,7 +537,6 @@ h1 {
   font-size: 0.95rem;
 }
 
-/* Section Title */
 .section-title {
   font-size: 1.3rem;
   margin: 25px 0 15px;
@@ -328,7 +544,6 @@ h1 {
   border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Seasons */
 .season-box {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 10px;
@@ -363,7 +578,6 @@ h1 {
   transition: transform 0.3s;
 }
 
-/* Episodes */
 .episodes-list {
   padding: 0 20px 20px;
 }
@@ -399,7 +613,28 @@ h1 {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* Download Buttons */
+.download-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.online-play-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.online-play-inline:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
 .downloads-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -417,6 +652,8 @@ h1 {
   text-decoration: none;
   transition: transform 0.3s, box-shadow 0.3s;
   cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
 }
 
 .download-btn:hover {
@@ -457,7 +694,6 @@ h1 {
   padding: 10px;
 }
 
-/* Error Box */
 .error-box {
   text-align: center;
   padding: 40px;
@@ -494,7 +730,6 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
-/* Episode Arrow */
 .episode-arrow {
   color: #feca57;
   font-size: 1.2rem;
@@ -505,7 +740,6 @@ h1 {
   transform: translateX(-5px);
 }
 
-/* Episode Loading */
 .episode-loading {
   color: #feca57;
   padding: 15px;
@@ -513,7 +747,6 @@ h1 {
   width: 100%;
 }
 
-/* Episode Links - Flex */
 .episode-links {
   display: none;
   flex-wrap: wrap;
@@ -522,7 +755,6 @@ h1 {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* Better Download Button */
 .download-btn {
   display: inline-flex;
   align-items: center;
@@ -543,7 +775,6 @@ h1 {
   box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
 }
 
-/* Season Box Improvements */
 .season-box {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 10px;
@@ -565,7 +796,6 @@ h1 {
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Episode Item */
 .episode-item {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
@@ -595,7 +825,6 @@ h1 {
   flex: 1;
 }
 
-/* No Links */
 .no-links {
   color: #888;
   padding: 15px;
@@ -603,7 +832,6 @@ h1 {
   width: 100%;
   margin: 0;
 }
-/* Synopsis Box */
 .synopsis-box {
   margin-top: 20px;
   padding: 15px;
@@ -625,7 +853,6 @@ h1 {
   text-align: justify;
 }
 
-/* Meta Item */
 .meta-item {
   display: inline-block;
   background: rgba(255, 255, 255, 0.1);
@@ -641,7 +868,6 @@ h1 {
   font-weight: bold;
 }
 
-/* Better Movie Header */
 .movie-header {
   display: flex;
   gap: 25px;
@@ -677,7 +903,6 @@ h1 {
   justify-content: flex-start;
 }
 
-/* Movie Poster Better */
 .movie-poster {
   flex-shrink: 0;
   width: 200px;

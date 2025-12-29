@@ -5,11 +5,9 @@ const cheerio = require("cheerio");
 const router = express.Router();
 const imageCache = new Map();
 
-// کوکی‌های لاگین
 let AUTH_COOKIES = "";
 let isLoggedIn = false;
 
-// اطلاعات لاگین از Environment Variables
 const credentials = {
   username: process.env.FARSILAND_USERNAME || "",
   password: process.env.FARSILAND_PASSWORD || "",
@@ -17,7 +15,6 @@ const credentials = {
 
 console.log("📧 Username configured:", credentials.username ? "Yes" : "No");
 
-// ============ لاگین خودکار ============
 async function doLogin() {
   if (!credentials.username || !credentials.password) {
     console.log("❌ No credentials in environment variables");
@@ -28,11 +25,9 @@ async function doLogin() {
   try {
     console.log("🔐 Logging in as:", credentials.username);
 
-    // User Agent واقعی‌تر
     const userAgent =
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
 
-    // مرحله 1: گرفتن صفحه اصلی برای کوکی
     const homeResponse = await axios.get("https://farsiland.com/", {
       headers: {
         "User-Agent": userAgent,
@@ -57,7 +52,6 @@ async function doLogin() {
 
     console.log("📡 Home page status:", homeResponse.status);
 
-    // گرفتن کوکی‌های اولیه
     let cookies = [];
     if (homeResponse.headers["set-cookie"]) {
       homeResponse.headers["set-cookie"].forEach((cookie) => {
@@ -67,10 +61,8 @@ async function doLogin() {
     }
     console.log("🍪 Initial cookies:", cookies.length);
 
-    // کمی صبر کن
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // مرحله 2: ارسال درخواست لاگین
     const loginResponse = await axios.post(
       "https://farsiland.com/wp-admin/admin-ajax.php",
       new URLSearchParams({
@@ -87,8 +79,6 @@ async function doLogin() {
           "Accept-Language": "en-US,en;q=0.9,fa;q=0.8",
           "Accept-Encoding": "gzip, deflate, br",
           "X-Requested-With": "XMLHttpRequest",
-          Origin: "https://farsiland.com",
-          Referer: "https://farsiland.com/",
           "Sec-Ch-Ua":
             '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
           "Sec-Ch-Ua-Mobile": "?0",
@@ -106,7 +96,6 @@ async function doLogin() {
 
     console.log("📡 Login response status:", loginResponse.status);
 
-    // گرفتن کوکی‌های لاگین
     if (loginResponse.headers["set-cookie"]) {
       loginResponse.headers["set-cookie"].forEach((cookie) => {
         const cookiePart = cookie.split(";")[0];
@@ -119,14 +108,12 @@ async function doLogin() {
     AUTH_COOKIES = cookies.join("; ");
     console.log("🍪 Total cookies:", cookies.length);
 
-    // چک کردن موفقیت لاگین
     if (AUTH_COOKIES.includes("wordpress_logged_in")) {
       isLoggedIn = true;
       console.log("✅ Login successful!");
       return true;
     }
 
-    // بررسی پاسخ
     if (loginResponse.data) {
       const dataStr =
         typeof loginResponse.data === "string"
@@ -148,7 +135,6 @@ async function doLogin() {
     }
 
     console.log("⚠️ Login status unclear, will try to use cookies anyway");
-    // حتی اگه مطمئن نیستیم، کوکی‌ها رو نگه میداریم
     return cookies.length > 2;
   } catch (error) {
     console.error("❌ Login error:", error.message);
@@ -159,9 +145,6 @@ async function doLogin() {
         JSON.stringify(error.response.headers).substring(0, 200)
       );
 
-      // اگر سرور مقصد ما (مثلاً farsiland) روی IP سرور Render لاگین را بلاک کند
-      // معمولاً status = 403 برمی32د. در این حالت ما فقط isLoggedIn را false
-      // می32اریم و جلوی کرش / throw را می32یریم تا بقیه API ها کار کنند.
       if (error.response.status === 403) {
         console.error(
           "⚠️ Upstream returned 403 (probably blocked bot/datacenter IP)."
@@ -169,19 +152,16 @@ async function doLogin() {
       }
     }
 
-    // در هر حالت، تلاش لاگین ناموفق بوده است
     isLoggedIn = false;
     AUTH_COOKIES = "";
     return false;
   }
 }
 
-// لاگین با تاخیر بعد از استارت سرور
 setTimeout(async () => {
   await doLogin();
 }, 3000);
 
-// هدرهای مشترک
 function getHeaders(referer = "https://farsiland.com/") {
   return {
     "User-Agent":
@@ -201,7 +181,6 @@ function getHeaders(referer = "https://farsiland.com/") {
   };
 }
 
-// ============ چک کردن وضعیت لاگین ============
 router.get("/auth-status", (req, res) => {
   res.json({
     isLoggedIn,
@@ -213,18 +192,14 @@ router.get("/auth-status", (req, res) => {
   });
 });
 
-// ============ لاگین دستی ============
 router.post("/login", async (req, res) => {
   const success = await doLogin();
-  // اگر farsiland ما را بلاک کند، success=false می32اند ولی خود سرور ما نباید 500 بدهد
-  // فقط وضعیت فعلی را گزارش می32هیم تا فرانت32ند خطای مناسب نشان بدهد.
   res.json({
     success,
     isLoggedIn,
   });
 });
 
-// ============ تست اتصال ============
 router.get("/test", async (req, res) => {
   try {
     const response = await axios.get("https://farsiland.com/", {
@@ -246,7 +221,6 @@ router.get("/test", async (req, res) => {
   }
 });
 
-// ============ سرچ ============
 router.get("/search", async (req, res) => {
   try {
     const query = req.query.q;
@@ -265,7 +239,6 @@ router.get("/search", async (req, res) => {
     const $ = cheerio.load(response.data);
     const results = [];
 
-    // روش 1: نتایج Ajax
     $(".is-ajax-search-post").each((i, el) => {
       const $el = $(el);
       let link = $el.find("a").first().attr("href") || "";
@@ -284,7 +257,6 @@ router.get("/search", async (req, res) => {
       }
     });
 
-    // روش 2: result-item
     $(".result-item").each((i, el) => {
       const $el = $(el);
       let link = $el.find(".thumbnail a, a").first().attr("href") || "";
@@ -300,7 +272,6 @@ router.get("/search", async (req, res) => {
       }
     });
 
-    // روش 3: articles
     $("article.item, .items article").each((i, el) => {
       const $el = $(el);
       let link = $el.find("a").first().attr("href") || "";
@@ -317,20 +288,30 @@ router.get("/search", async (req, res) => {
       }
     });
 
-    console.log(`📦 Found ${results.length} results`);
+    const uniqueResults = [];
+    const seenLinks = new Set();
+    for (const item of results) {
+      if (!item.link) continue;
+      if (seenLinks.has(item.link)) continue;
+      seenLinks.add(item.link);
+      uniqueResults.push(item);
+    }
+
+    console.log(
+      `📦 Found ${results.length} results, unique: ${uniqueResults.length}`
+    );
     res.json({
       success: true,
       query,
-      count: results.length,
-      results: results.slice(0, 30),
+      count: uniqueResults.length,
+      results: uniqueResults.slice(0, 30),
     });
   } catch (error) {
-    console.error("❌ Search Error:", error.message);
+    console.error(" Search Error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ============ جزئیات ============
 router.get("/details", async (req, res) => {
   try {
     const url = req.query.url;
@@ -347,11 +328,9 @@ router.get("/details", async (req, res) => {
 
     const $ = cheerio.load(response.data);
 
-    // عنوان
     const title =
       $(".sheader .data h1").text().trim() || $("h1").first().text().trim();
 
-    // عکس پوستر
     let image = "";
     image = $(".poster img").attr("data-src");
     if (!image) image = $(".poster img").attr("src");
@@ -367,13 +346,20 @@ router.get("/details", async (req, res) => {
       }
     }
 
-    // خلاصه داستان
     let synopsis = "";
     const wpContent = $("#info .wp-content").clone();
     wpContent.find("#dt_galery, .galeria").remove();
     synopsis = wpContent.text().trim().replace(/\s+/g, " ");
 
-    // اطلاعات اضافی
+    const hasFa = /[\u0600-\u06FF]/.test(synopsis);
+    const hasLat = /[A-Za-z]/.test(synopsis);
+    if (hasFa && hasLat) {
+      synopsis = synopsis.replace(
+        /([A-Za-z0-9\.\!\?])\s*([\u0600-\u06FF])/,
+        "$1<br><br>$2"
+      );
+    }
+
     let originalTitle = "";
     let firstAirDate = "";
     let seasonsCount = "";
@@ -409,9 +395,31 @@ router.get("/details", async (req, res) => {
 
     let seasons = [];
     let downloads = [];
+    let lastSeasonNumber = "";
+    let lastEpisodeNumber = "";
 
     if (isSeries) {
       seasons = extractSeasons($);
+      if (seasons && seasons.length > 0) {
+        seasonsCount = String(seasons.length);
+
+        const lastSeason = seasons[seasons.length - 1];
+        if (lastSeason) {
+          lastSeasonNumber = lastSeason.number || String(seasons.length);
+          if (
+            Array.isArray(lastSeason.episodes) &&
+            lastSeason.episodes.length > 0
+          ) {
+            const lastEpisode =
+              lastSeason.episodes[lastSeason.episodes.length - 1];
+            const epNumMatch = lastEpisode.title.match(/(\d+)/);
+            lastEpisodeNumber = epNumMatch
+              ? epNumMatch[1]
+              : String(lastSeason.episodes.length);
+            episodesCount = String(lastSeason.episodes.length);
+          }
+        }
+      }
     }
     downloads = extractDownloads($);
 
@@ -430,6 +438,8 @@ router.get("/details", async (req, res) => {
       firstAirDate,
       seasonsCount,
       episodesCount,
+      lastSeasonNumber,
+      lastEpisodeNumber,
       genre,
       imdb,
       duration,
@@ -443,7 +453,6 @@ router.get("/details", async (req, res) => {
   }
 });
 
-// استخراج فصل‌ها
 function extractSeasons($) {
   const seasons = [];
 
@@ -470,7 +479,6 @@ function extractSeasons($) {
   return seasons;
 }
 
-// استخراج لینک‌های دانلود
 function extractDownloads($) {
   const downloads = [];
 
@@ -502,12 +510,13 @@ function extractDownloads($) {
       if (!fileId) return;
 
       let quality = $row.find(".quality, strong.quality").text().trim();
-      if (!quality)
-        quality = $row.find("strong").first().text().trim() || "نامشخص";
+      if (!quality) quality = $row.find("strong").first().text().trim();
       const qualityMatch = quality.match(/(\d{3,4})/);
-      if (qualityMatch) quality = qualityMatch[1];
+      // فقط اگر عدد کیفیت پیدا شد، نگه میداریم؛ در غیر این صورت خالی میماند
+      quality = qualityMatch ? qualityMatch[1] : "";
 
-      let size = "نامشخص";
+      // اگر حجم پیدا نشد خالی بماند تا در UI چیزی نمایش داده نشود
+      let size = "";
       $row.find("td").each((idx, td) => {
         const text = $(td).text().trim();
         if (text.match(/\d+\s*(MB|GB|KB)/i)) size = text;
@@ -522,14 +531,13 @@ function extractDownloads($) {
   return downloads;
 }
 
-// ============ قسمت ============
 router.get("/episode", async (req, res) => {
   try {
     const url = req.query.url;
     if (!url)
       return res.status(400).json({ success: false, error: "URL نامعتبر" });
 
-    console.log("📺 Getting episode:", url);
+    console.log(" Getting episode:", url);
 
     const response = await axios.get(url, {
       headers: getHeaders(url),
@@ -543,28 +551,26 @@ router.get("/episode", async (req, res) => {
       $(".poster img").attr("data-src") || $(".poster img").attr("src") || "";
     const downloads = extractDownloads($);
 
-    console.log(`✅ Episode: ${title}, Downloads: ${downloads.length}`);
+    console.log(` Episode: ${title}, Downloads: ${downloads.length}`);
     res.json({ success: true, title, image, downloads });
   } catch (error) {
-    console.error("❌ Episode Error:", error.message);
+    console.error(" Episode Error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ============ دریافت لینک دانلود ============
 router.get("/get-download", async (req, res) => {
   try {
     const fileId = req.query.fileId;
     if (!fileId)
       return res.status(400).json({ success: false, error: "fileId نامعتبر" });
 
-    // اگه لاگین نیستیم، دوباره تلاش کن
     if (!isLoggedIn && AUTH_COOKIES.length < 50) {
-      console.log("🔄 Not logged in, trying to login...");
+      console.log(" Not logged in, trying to login...");
       await doLogin();
     }
 
-    console.log("⬇️ Getting download for:", fileId);
+    console.log(" Getting download for:", fileId);
 
     const response = await axios.post(
       "https://farsiland.com/get/",
@@ -572,7 +578,7 @@ router.get("/get-download", async (req, res) => {
       {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
           "Content-Type": "application/x-www-form-urlencoded",
           Accept:
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -592,12 +598,10 @@ router.get("/get-download", async (req, res) => {
 
     let downloadUrl = null;
 
-    // چک ریدایرکت
     if (response.status >= 300 && response.status < 400) {
       downloadUrl = response.headers.location;
     }
 
-    // Parse HTML
     if (!downloadUrl && response.data && typeof response.data === "string") {
       const $ = cheerio.load(response.data);
 
@@ -622,15 +626,13 @@ router.get("/get-download", async (req, res) => {
         if (dlMatch) downloadUrl = dlMatch[1];
       }
 
-      // اگه صفحه لاگین اومد
       if (
         !downloadUrl &&
         (response.data.includes("login") || response.data.includes("ورود"))
       ) {
-        console.log("⚠️ Login page returned, re-logging...");
+        console.log(" Login page returned, re-logging...");
         await doLogin();
 
-        // Retry
         const retryResponse = await axios.post(
           "https://farsiland.com/get/",
           new URLSearchParams({ fileid: fileId }).toString(),
@@ -663,13 +665,13 @@ router.get("/get-download", async (req, res) => {
       !downloadUrl.includes("login") &&
       !downloadUrl.includes("account")
     ) {
-      console.log("✅ Download URL found!");
+      console.log(" Download URL found!");
       return res.json({ success: true, downloadUrl });
     }
 
     throw new Error("لینک دانلود یافت نشد");
   } catch (error) {
-    console.error("❌ Download Error:", error.message);
+    console.error(" Download Error:", error.message);
 
     if (error.response?.headers?.location) {
       const loc = error.response.headers.location;
@@ -678,10 +680,7 @@ router.get("/get-download", async (req, res) => {
       }
     }
 
-    // اگر upstream ما را با 403 بلاک کرده باشد، اینجا یک پیام واضح32تر برمی32دانیم
-    const status = error.response?.status;
-
-    if (status === 403) {
+    if (error.response?.status === 403) {
       return res.status(403).json({
         success: false,
         error:
@@ -699,7 +698,6 @@ router.get("/get-download", async (req, res) => {
   }
 });
 
-// ============ پروکسی تصاویر ============
 router.get("/proxy-image", async (req, res) => {
   try {
     const imageUrl = req.query.url;

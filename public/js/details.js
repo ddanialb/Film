@@ -32,10 +32,29 @@ async function loadDetails(url) {
   }
 }
 
+const STREAM_KEY = "farsiland-current-stream";
+
+// باز کردن پلیر آنلاین بر اساس لیست کیفیت‌ها (دانلودها)
+function openOnlinePlayerWithDownloads(title, downloads) {
+  if (!downloads || downloads.length === 0) return;
+
+  try {
+    localStorage.setItem(
+      STREAM_KEY,
+      JSON.stringify({
+        title: title || "",
+        downloads,
+        source: window.location.href,
+      })
+    );
+  } catch (e) {}
+
+  window.location.href = "/player.html";
+}
+
 function showDetails(data) {
   content.style.display = "block";
 
-  // ساخت HTML اطلاعات
   let metaHtml = "";
 
   if (data.year) {
@@ -53,11 +72,18 @@ function showDetails(data) {
   if (data.imdb) {
     metaHtml += `<span class="meta-item imdb">⭐ ${data.imdb}</span>`;
   }
-  if (data.seasonsCount) {
-    metaHtml += `<span class="meta-item">📺 ${data.seasonsCount} فصل</span>`;
-  }
-  if (data.episodesCount) {
-    metaHtml += `<span class="meta-item">🎬 ${data.episodesCount} قسمت</span>`;
+  // برای سریال: فصل آخر و آخرین قسمت آن فصل
+  if (data.isSeries && data.lastSeasonNumber && data.lastEpisodeNumber) {
+    metaHtml += `<span class="meta-item">📺 فصل ${data.lastSeasonNumber}</span>`;
+    metaHtml += `<span class="meta-item">🎬 قسمت ${data.lastEpisodeNumber}</span>`;
+  } else {
+    // برای فیلم یا اگر داده نبود: تعداد کلی فصل/قسمت
+    if (data.seasonsCount) {
+      metaHtml += `<span class="meta-item">📺 ${data.seasonsCount} فصل</span>`;
+    }
+    if (data.episodesCount) {
+      metaHtml += `<span class="meta-item">🎬 ${data.episodesCount} قسمت</span>`;
+    }
   }
 
   movieInfo.innerHTML = `
@@ -105,6 +131,13 @@ function showDetails(data) {
   // لینک‌های دانلود
   if (data.downloads && data.downloads.length > 0) {
     showDownloads(data.downloads, "لینک‌های دانلود");
+
+    // ذخیره اطلاعات برای پخش آنلاین
+    setupOnlinePlayerButton({
+      title: data.title,
+      image: data.image,
+      downloads: data.downloads,
+    });
   }
 }
 
@@ -158,10 +191,19 @@ async function loadEpisode(seasonIndex, episodeIndex, encodedUrl) {
 
   if (linksContainer.style.display === "flex") {
     linksContainer.style.display = "none";
+    const wrapper = linksContainer.previousElementSibling;
+    if (wrapper && wrapper.classList.contains("online-play-wrapper")) {
+      wrapper.style.display = "none";
+    }
     return;
   }
 
   linksContainer.style.display = "flex";
+
+  const wrapper = linksContainer.previousElementSibling;
+  if (wrapper && wrapper.classList.contains("online-play-wrapper")) {
+    wrapper.style.display = "block";
+  }
 
   if (linksContainer.dataset.loaded === "true") {
     return;
@@ -178,16 +220,34 @@ async function loadEpisode(seasonIndex, episodeIndex, encodedUrl) {
     if (data.success && data.downloads && data.downloads.length > 0) {
       let html = "";
       data.downloads.forEach((dl) => {
+        const sizeHtml = dl.size ? `<span class="size">${dl.size}</span>` : "";
+        const qualityLabel = dl.quality ? `${dl.quality}p` : "کیفیت";
         html += `
-          <a href="#" class="download-btn" onclick="getDownloadLink('${dl.fileId}', this); return false;">
-            <span class="quality">${dl.quality}p</span>
-            <span class="size">${dl.size}</span>
-            <span class="icon">⬇️</span>
-          </a>
+          <div class="download-row">
+            <a href="#" class="download-btn" onclick="getDownloadLink('${dl.fileId}', this); return false;">
+              <span class="quality">${qualityLabel}</span>
+              ${sizeHtml}
+              <span class="icon">⬇️</span>
+            </a>
+          </div>
         `;
       });
       linksContainer.innerHTML = html;
       linksContainer.dataset.loaded = "true";
+
+      // یک دکمه پخش آنلاین برای کل اپیزود
+      const onlineWrapper = document.createElement("div");
+      onlineWrapper.className = "online-play-wrapper";
+      const onlineBtn = document.createElement("a");
+      onlineBtn.href = "#";
+      onlineBtn.className = "online-play-btn";
+      onlineBtn.textContent = "▶️ پخش آنلاین این قسمت";
+      onlineBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        openOnlinePlayerWithDownloads(data.title, data.downloads);
+      });
+      onlineWrapper.appendChild(onlineBtn);
+      linksContainer.parentElement.insertBefore(onlineWrapper, linksContainer);
     } else {
       linksContainer.innerHTML =
         '<p class="no-links">❌ لینک دانلود یافت نشد</p>';
@@ -203,17 +263,45 @@ function showDownloads(downloads, title) {
   html += '<div class="downloads-grid">';
 
   downloads.forEach((dl) => {
+    const sizeHtml = dl.size ? `<span class="size">${dl.size}</span>` : "";
+    const qualityLabel = dl.quality ? `${dl.quality}p` : "کیفیت";
     html += `
-      <a href="#" class="download-btn" onclick="getDownloadLink('${dl.fileId}', this); return false;">
-        <span class="quality">${dl.quality}p</span>
-        <span class="size">${dl.size}</span>
-        <span class="icon">⬇️ دانلود</span>
-      </a>
+      <div class="download-row">
+        <a href="#" class="download-btn" onclick="getDownloadLink('${dl.fileId}', this); return false;">
+          <span class="quality">${qualityLabel}</span>
+          ${sizeHtml}
+          <span class="icon">⬇️ دانلود</span>
+        </a>
+      </div>
     `;
   });
 
   html += "</div>";
   downloadsContainer.innerHTML = html;
+}
+
+// تنظیم دکمه پخش آنلاین برای فیلم‌هایی که لینک دانلود دارند
+function setupOnlinePlayerButton(movieData) {
+  if (!movieData || !movieData.downloads || movieData.downloads.length === 0)
+    return;
+
+  const btn = document.createElement("a");
+  btn.href = "#";
+  btn.className = "online-play-btn";
+  btn.textContent = "▶️ پخش آنلاین";
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    openOnlinePlayerWithDownloads(movieData.title, movieData.downloads);
+  });
+
+  // اضافه کردن دکمه بالای لینکهای دانلود
+  if (downloadsContainer) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "online-play-wrapper";
+    wrapper.appendChild(btn);
+    downloadsContainer.parentElement.insertBefore(wrapper, downloadsContainer);
+  }
 }
 
 async function getDownloadLink(fileId, element) {
