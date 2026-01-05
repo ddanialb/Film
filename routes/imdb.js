@@ -14,7 +14,9 @@ router.get("/search", async (req, res) => {
 
     console.log("🎬 IMDB Search:", query);
 
-    const response = await axios.get(`https://v3.sg.media-imdb.com/suggestion/x/${encodeURIComponent(query)}.json`, {
+    // First letter of query must be in URL path
+    const firstLetter = query.charAt(0).toLowerCase();
+    const response = await axios.get(`https://v3.sg.media-imdb.com/suggestion/${firstLetter}/${encodeURIComponent(query)}.json`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "application/json",

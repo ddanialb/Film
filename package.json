@@ -20,7 +20,8 @@
     "express": "^4.18.2",
     "input": "^1.0.1",
     "socks": "^2.8.7",
-    "telegram": "^2.26.22"
+    "telegram": "^2.26.22",
+    "unzipper": "^0.12.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"
