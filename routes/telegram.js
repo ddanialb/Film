@@ -17,8 +17,8 @@ const proxyPort = parseInt(process.env.TELEGRAM_PROXY_PORT) || 0;
 const proxySecret = process.env.TELEGRAM_PROXY_SECRET || "";
 
 // System SOCKS proxy (e.g., from V2Ray, Clash, etc.)
-const socksProxyHost = process.env.SOCKS_PROXY_HOST || "127.0.0.1";
-const socksProxyPort = parseInt(process.env.SOCKS_PROXY_PORT) || 10808;
+const socksProxyHost = process.env.SOCKS_PROXY_HOST || "";
+const socksProxyPort = parseInt(process.env.SOCKS_PROXY_PORT) || 0;
 
 const SESSION_FILE = path.join(__dirname, "../data/telegram_session.txt");
 const CACHE_FILE = path.join(__dirname, "../data/playlist_cache.json");
@@ -154,15 +154,17 @@ function getClientOptions() {
     autoReconnect: true,
   };
 
-  // Use system SOCKS5 proxy (V2Ray, Clash, etc.)
-  if (socksProxyPort) {
+  // Use system SOCKS5 proxy only if BOTH host and port are configured
+  if (socksProxyHost && socksProxyHost.trim() !== "" && socksProxyPort && socksProxyPort > 0) {
     console.log(`🌐 Using SOCKS5 proxy: ${socksProxyHost}:${socksProxyPort}`);
     options.proxy = {
       ip: socksProxyHost,
       port: socksProxyPort,
       socksType: 5,
-      timeout: 30,
+      timeout: 10,
     };
+  } else {
+    console.log(`🌐 Direct connection (no proxy configured)`);
   }
 
   return options;
@@ -184,7 +186,9 @@ async function initClient() {
   const savedSession = loadSession();
   const stringSession = new StringSession(savedSession);
 
-  client = new TelegramClient(stringSession, apiId, apiHash, getClientOptions());
+  // Try with proxy first (if configured)
+  let clientOptions = getClientOptions();
+  client = new TelegramClient(stringSession, apiId, apiHash, clientOptions);
 
   try {
     await client.connect();
@@ -199,7 +203,29 @@ async function initClient() {
     console.log("⚠️ Telegram: Not authorized, need to login");
     return client;
   } catch (e) {
-    console.error("Connection error:", e.message);
+    console.error("Connection error with proxy:", e.message);
+    
+    // If proxy failed, try without proxy
+    if (clientOptions.proxy) {
+      console.log("🔄 Retrying without proxy...");
+      delete clientOptions.proxy;
+      client = new TelegramClient(stringSession, apiId, apiHash, clientOptions);
+      
+      try {
+        await client.connect();
+        const authorized = await client.isUserAuthorized();
+        if (authorized) {
+          isConnected = true;
+          console.log("✅ Telegram: Connected without proxy");
+          return client;
+        }
+        return client;
+      } catch (e2) {
+        console.error("Connection error without proxy:", e2.message);
+        throw e2;
+      }
+    }
+    
     throw e;
   }
 }
@@ -788,11 +814,24 @@ router.get("/get-links", async (req, res) => {
 
     // 3. FALLBACK TO TELEGRAM BOT
     if (!client || !isConnected) {
-      return res.json({ 
-        success: false, 
-        error: "نیاز به ورود تلگرام",
-        needLogin: true 
-      });
+      console.log("⚠️ Telegram not connected, trying to connect...");
+      try {
+        await initClient();
+        if (!client || !isConnected) {
+          return res.json({ 
+            success: false, 
+            error: "Unable to connect to Telegram. Check your TELEGRAM_SESSION or remove proxy settings if outside Iran.",
+            needLogin: true 
+          });
+        }
+      } catch (e) {
+        console.error("Failed to init Telegram client:", e.message);
+        return res.json({ 
+          success: false, 
+          error: "Telegram connection failed: " + e.message,
+          needLogin: true 
+        });
+      }
     }
 
     try {
@@ -1145,19 +1184,20 @@ setTimeout(async () => {
     const savedSession = loadSession();
     if (savedSession) {
       console.log("📦 Found saved Telegram session, connecting...");
-      const stringSession = new StringSession(savedSession);
-      client = new TelegramClient(stringSession, apiId, apiHash, getClientOptions());
       
-      await client.connect();
-      
-      if (await client.isUserAuthorized()) {
-        isConnected = true;
-        console.log("🤖 Telegram ready (from saved session)");
-      } else {
-        console.log("⚠️ Telegram: Session expired, need to login. Call POST /telegram/login");
+      try {
+        await initClient();
+        if (isConnected) {
+          console.log("🤖 Telegram ready (from saved session)");
+        } else {
+          console.log("⚠️ Telegram: Session expired, need to login. Call POST /telegram/login");
+        }
+      } catch (e) {
+        console.error("Telegram connection error:", e.message);
+        console.log("💡 Tip: If outside Iran, remove SOCKS_PROXY_HOST and SOCKS_PROXY_PORT from ENV");
       }
     } else {
-      console.log("⚠️ Telegram: No saved session. Call POST /telegram/login");
+      console.log("⚠️ Telegram: No saved session. Add TELEGRAM_SESSION to ENV or call POST /telegram/login");
     }
   } catch (e) {
     console.error("Telegram init error:", e.message);
