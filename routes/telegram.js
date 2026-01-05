@@ -917,13 +917,39 @@ router.get("/get-links", async (req, res) => {
             })
           );
 
-          await new Promise(r => setTimeout(r, 3000));
-          const messages = await client.getMessages(bot, { limit: 5 });
+          // Wait for bot response with retry (up to 15 seconds)
+          let latestMsg = null;
+          for (let attempt = 1; attempt <= 5; attempt++) {
+            console.log(`⏳ Waiting for bot response... (attempt ${attempt}/5)`);
+            await new Promise(r => setTimeout(r, 3000));
+            
+            const messages = await client.getMessages(bot, { limit: 3 });
+            
+            // Find a message with buttons (reply markup)
+            for (const msg of messages) {
+              if (msg && msg.replyMarkup && msg.replyMarkup.rows && msg.replyMarkup.rows.length > 0) {
+                // Check if this message has relevant buttons
+                const hasRelevantButtons = msg.replyMarkup.rows.some(row => 
+                  row.buttons.some(btn => {
+                    const url = btn.url || '';
+                    return url.includes("seasonID=") || url.includes("uniqueID=") || url.includes("playlist=");
+                  })
+                );
+                
+                if (hasRelevantButtons) {
+                  latestMsg = msg;
+                  console.log(`✅ Got bot response with buttons on attempt ${attempt}`);
+                  break;
+                }
+              }
+            }
+            
+            if (latestMsg) break;
+          }
 
-          // Only use the FIRST message (most recent) to avoid mixing seasons from different series
-          const latestMsg = messages[0];
+          // Process the message if found
           if (latestMsg && latestMsg.replyMarkup && latestMsg.replyMarkup.rows) {
-            console.log(`📝 Processing latest message only`);
+            console.log(`📝 Processing bot response`);
             
             for (const row of latestMsg.replyMarkup.rows) {
               for (const button of row.buttons) {
@@ -948,6 +974,8 @@ router.get("/get-links", async (req, res) => {
                 }
               }
             }
+          } else {
+            console.log("⚠️ No response from bot after 15 seconds");
           }
 
           if (seasons.length > 0) {

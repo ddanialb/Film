@@ -153,12 +153,28 @@ async function getDownloadLinks() {
 
   getLinksBtn.disabled = true;
   getLinksBtn.innerHTML = '<span class="loading-text">⏳ Loading...</span>';
-  linksContainer.innerHTML = '<div class="loading active"><div class="loading-spinner"></div><p>Loading...</p></div>';
+  linksContainer.innerHTML = '<div class="loading active"><div class="loading-spinner"></div><p>Searching StreamWide...</p></div>';
 
   try {
     const params = new URLSearchParams({ imdbId: currentImdbId, title: currentTitle || '' });
+    
+    // Update loading message after 5 seconds
+    const loadingTimeout = setTimeout(() => {
+      const loadingEl = linksContainer.querySelector('.loading p');
+      if (loadingEl) loadingEl.textContent = 'Waiting for Telegram bot response...';
+    }, 5000);
+    
+    // Update loading message after 10 seconds
+    const loadingTimeout2 = setTimeout(() => {
+      const loadingEl = linksContainer.querySelector('.loading p');
+      if (loadingEl) loadingEl.textContent = 'Still waiting... (this may take up to 15 seconds)';
+    }, 10000);
+    
     const response = await fetch(`/telegram/get-links?${params}`);
     const data = await response.json();
+    
+    clearTimeout(loadingTimeout);
+    clearTimeout(loadingTimeout2);
 
     if (data.needLogin) { showNeedLogin(); return; }
     if (!data.success && !data.seasons) {
