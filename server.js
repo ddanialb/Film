@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 if (typeof global.File === "undefined") {
   global.File = class File {};
 }
@@ -16,7 +18,11 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const searchRoutes = require("./routes/search");
+const imdbRoutes = require("./routes/imdb");
+const telegramRoutes = require("./routes/telegram");
 app.use("/api", searchRoutes);
+app.use("/imdb", imdbRoutes);
+app.use("/telegram", telegramRoutes);
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>فیلم خارجی - StreamWideBot</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+      .get-links-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 30px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 30px;
+        color: #fff;
+        text-decoration: none;
+        font-size: 1.1rem;
+        transition: transform 0.3s, box-shadow 0.3s;
+        border: none;
+        cursor: pointer;
+      }
+      .get-links-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+      }
+      .get-links-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .imdb-id {
+        background: #f5c518;
+        color: #000;
+        padding: 5px 12px;
+        border-radius: 5px;
+        font-weight: bold;
+        font-size: 0.9rem;
+        display: inline-block;
+      }
+      .copy-btn {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 15px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-right: 8px;
+        transition: all 0.3s;
+      }
+      .copy-btn:hover {
+        background: rgba(255,255,255,0.2);
+      }
+      .links-container {
+        margin-top: 25px;
+        padding: 20px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 15px;
+        min-height: 100px;
+      }
+      .type-badge {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: rgba(0,0,0,0.7);
+        color: #feca57;
+        padding: 3px 8px;
+        border-radius: 5px;
+        font-size: 0.75rem;
+      }
+      .type-tag {
+        background: rgba(254,202,87,0.2);
+        color: #feca57;
+        padding: 3px 10px;
+        border-radius: 15px;
+      }
+      .seasons-section {
+        margin-bottom: 25px;
+      }
+      .seasons-section h3 {
+        color: #feca57;
+        margin-bottom: 15px;
+      }
+      .season-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .season-btn {
+        padding: 10px 20px;
+        border: 2px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.05);
+        color: #fff;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0.95rem;
+      }
+      .season-btn:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.3);
+      }
+      .season-btn.active {
+        background: #feca57;
+        color: #000;
+        border-color: #feca57;
+      }
+      .subtype-group {
+        margin-bottom: 25px;
+        padding: 20px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+      .subtype-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid rgba(254,202,87,0.2);
+      }
+      .subtype-header h3 {
+        color: #feca57;
+        font-size: 1.1rem;
+        margin: 0;
+      }
+      .subtype-icon {
+        font-size: 1.3rem;
+      }
+      .quality-block {
+        margin-bottom: 15px;
+        padding: 12px;
+        background: rgba(0,0,0,0.2);
+        border-radius: 10px;
+      }
+      .quality-label {
+        color: #a29bfe;
+        font-size: 0.9rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+        padding: 6px 12px;
+        background: rgba(162,155,254,0.15);
+        border-radius: 6px;
+        display: inline-block;
+        border-left: 3px solid #a29bfe;
+      }
+      .episodes-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .ep-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 8px;
+        background: linear-gradient(135deg, rgba(46,204,113,0.15), rgba(39,174,96,0.15));
+        border: 1px solid rgba(46,204,113,0.3);
+        border-radius: 10px;
+        color: #fff;
+        text-decoration: none;
+        transition: all 0.2s;
+        text-align: center;
+        min-width: 70px;
+        gap: 4px;
+      }
+      .ep-btn:hover {
+        background: linear-gradient(135deg, rgba(46,204,113,0.3), rgba(39,174,96,0.3));
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(46,204,113,0.2);
+      }
+      .ep-btn .ep-num {
+        font-size: 0.95rem;
+        font-weight: bold;
+        color: #2ecc71;
+        line-height: 1;
+      }
+      .ep-btn .ep-size {
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.6);
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .movie-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .dl-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: linear-gradient(135deg, rgba(46,204,113,0.2), rgba(39,174,96,0.2));
+        border: 1px solid rgba(46,204,113,0.3);
+        border-radius: 8px;
+        color: #fff;
+        text-decoration: none;
+        transition: all 0.2s;
+      }
+      .dl-btn:hover {
+        background: linear-gradient(135deg, rgba(46,204,113,0.4), rgba(39,174,96,0.4));
+        transform: translateY(-2px);
+      }
+      .dl-btn .dl-size {
+        font-size: 0.85rem;
+      }
+      .dl-btn .dl-icon {
+        font-size: 1rem;
+      }
+      .downloads-section h3 {
+        color: #feca57;
+        margin-bottom: 15px;
+      }
+      .quality-selector {
+        margin-bottom: 20px;
+      }
+      .quality-selector h3 {
+        color: #feca57;
+        margin-bottom: 12px;
+        font-size: 1rem;
+      }
+      .quality-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .quality-btn {
+        padding: 10px 18px;
+        border: 2px solid rgba(102,126,234,0.3);
+        background: rgba(102,126,234,0.1);
+        color: #fff;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0.9rem;
+      }
+      .quality-btn:hover {
+        background: rgba(102,126,234,0.2);
+        border-color: rgba(102,126,234,0.5);
+      }
+      .quality-btn.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-color: transparent;
+      }
+      .quality-btn .count {
+        opacity: 0.7;
+        font-size: 0.8rem;
+      }
+      .episodes-section {
+        margin-top: 20px;
+      }
+      .episodes-section h4 {
+        color: #888;
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      .episodes-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .episode-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 15px 10px;
+        background: linear-gradient(135deg, rgba(46,204,113,0.15), rgba(39,174,96,0.15));
+        border: 1px solid rgba(46,204,113,0.3);
+        border-radius: 12px;
+        color: #fff;
+        text-decoration: none;
+        transition: all 0.3s;
+        text-align: center;
+      }
+      .episode-btn:hover {
+        background: linear-gradient(135deg, rgba(46,204,113,0.3), rgba(39,174,96,0.3));
+        transform: translateY(-2px);
+      }
+      .episode-btn .ep-num {
+        font-size: 1rem;
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+      .episode-btn .ep-size {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.6);
+      }
+      .download-group {
+        margin-bottom: 20px;
+      }
+      .download-group h4 {
+        color: #888;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      .downloads-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .download-btn {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        background: linear-gradient(135deg, rgba(46,204,113,0.2), rgba(39,174,96,0.2));
+        border: 1px solid rgba(46,204,113,0.3);
+        border-radius: 10px;
+        color: #fff;
+        text-decoration: none;
+        transition: all 0.3s;
+      }
+      .download-btn:hover {
+        background: linear-gradient(135deg, rgba(46,204,113,0.4), rgba(39,174,96,0.4));
+        transform: translateY(-2px);
+      }
+      .download-btn .dl-info {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        text-align: right;
+      }
+      .download-btn .dl-quality {
+        font-size: 0.9rem;
+        font-weight: bold;
+      }
+      .download-btn .dl-size {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.6);
+      }
+      .download-btn .quality {
+        font-size: 0.85rem;
+      }
+      .download-btn .icon {
+        font-size: 1.1rem;
+      }
+      .play-section {
+        margin-top: 25px;
+        text-align: center;
+      }
+      .online-play-btn {
+        padding: 14px 35px;
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        border: none;
+        border-radius: 30px;
+        color: #fff;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .online-play-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(231,76,60,0.4);
+      }
+      .play-section-top {
+        text-align: center;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: rgba(231,76,60,0.1);
+        border-radius: 15px;
+        border: 1px solid rgba(231,76,60,0.2);
+      }
+      .current-sel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .sel-tag {
+        padding: 6px 14px;
+        background: rgba(254,202,87,0.15);
+        border: 1px solid rgba(254,202,87,0.3);
+        border-radius: 20px;
+        font-size: 0.85rem;
+        color: #feca57;
+      }
+      .success-msg {
+        text-align: center;
+        padding: 20px;
+        color: #2ecc71;
+        font-size: 1.1rem;
+      }
+      
+      /* Step-by-step UI */
+      .step-title {
+        color: #feca57;
+        font-size: 1.2rem;
+        margin: 0 0 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .step-subtitle {
+        color: #a29bfe;
+        font-size: 0.95rem;
+        margin: 15px 0 12px 0;
+        font-weight: normal;
+      }
+      .back-btn-small {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-bottom: 15px;
+        transition: all 0.2s;
+      }
+      .back-btn-small:hover {
+        background: rgba(255,255,255,0.2);
+      }
+      
+      /* Type selector */
+      .type-selector {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .type-btn {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 18px 20px;
+        background: linear-gradient(135deg, rgba(102,126,234,0.15), rgba(118,75,162,0.15));
+        border: 2px solid rgba(102,126,234,0.3);
+        border-radius: 16px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: left;
+      }
+      .type-btn:hover {
+        background: linear-gradient(135deg, rgba(102,126,234,0.3), rgba(118,75,162,0.3));
+        border-color: rgba(102,126,234,0.5);
+        transform: translateX(-5px);
+      }
+      .type-btn .type-icon {
+        font-size: 2rem;
+      }
+      .type-btn .type-label {
+        font-size: 1.1rem;
+        font-weight: bold;
+        flex: 1;
+      }
+      .type-btn .type-info {
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.6);
+        background: rgba(0,0,0,0.3);
+        padding: 5px 12px;
+        border-radius: 20px;
+      }
+      
+      /* Quality selector grid */
+      .quality-selector-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .quality-btn-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 20px 15px;
+        background: linear-gradient(135deg, rgba(162,155,254,0.15), rgba(129,140,248,0.15));
+        border: 2px solid rgba(162,155,254,0.3);
+        border-radius: 14px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .quality-btn-card:hover {
+        background: linear-gradient(135deg, rgba(162,155,254,0.3), rgba(129,140,248,0.3));
+        border-color: rgba(162,155,254,0.6);
+        transform: translateY(-3px);
+      }
+      .quality-btn-card .quality-name {
+        font-size: 1rem;
+        font-weight: bold;
+        color: #a29bfe;
+      }
+      .quality-btn-card .quality-info {
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.6);
+      }
+      .quality-btn-card .quality-size {
+        font-size: 0.75rem;
+        color: #2ecc71;
+        background: rgba(46,204,113,0.15);
+        padding: 3px 10px;
+        border-radius: 10px;
+      }
+      .error-box {
+        text-align: center;
+        padding: 30px;
+      }
+      .code-input-box {
+        text-align: center;
+        padding: 25px;
+      }
+      .code-input-box input {
+        padding: 12px 20px;
+        margin: 15px 0;
+        border-radius: 10px;
+        border: 2px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.05);
+        color: #fff;
+        font-size: 1.3rem;
+        text-align: center;
+        width: 150px;
+      }
+      .code-input-box input:focus {
+        outline: none;
+        border-color: #feca57;
+      }
+      .movie-header {
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+      }
+      .movie-poster {
+        width: 150px;
+        flex-shrink: 0;
+      }
+      .movie-poster img {
+        width: 100%;
+        border-radius: 10px;
+      }
+      .no-poster {
+        width: 100%;
+        height: 200px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+      }
+      .movie-details h1 {
+        margin: 0 0 15px 0;
+        font-size: 1.5rem;
+      }
+      .meta-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .meta-item {
+        background: rgba(255,255,255,0.1);
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+      }
+      .meta-item.imdb {
+        background: #f5c518;
+        color: #000;
+        font-weight: bold;
+      }
+      @media (max-width: 600px) {
+        .movie-header {
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+        }
+        .movie-poster {
+          width: 120px;
+        }
+        .meta-info {
+          justify-content: center;
+        }
+        .downloads-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>فیلم بینا</h1>
+      <div class="nav-links">
+        <a href="/" class="nav-link">🎬 فیلم فارسی</a>
+        <a href="/telegram.html" class="nav-link active">🌍 فیلم خارجی</a>
+      </div>
+
+      <div class="search-box">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search movie or series in English..."
+          autocomplete="off"
+        />
+        <button id="searchBtn">🔍</button>
+      </div>
+
+      <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p style="margin-top: 10px">Searching IMDB...</p>
+      </div>
+
+      <div id="results" class="results"></div>
+
+      <div id="selectedMovie" style="display: none;">
+        <div id="movieDetails" class="movie-info"></div>
+
+        <div style="text-align: center; margin: 20px 0;">
+          <span class="imdb-id" id="imdbCode"></span>
+          <button class="copy-btn" id="copyBtn">📋</button>
+        </div>
+
+        <div style="text-align: center;">
+          <button class="get-links-btn" id="getLinksBtn">🔗 دریافت لینک‌های دانلود</button>
+        </div>
+
+        <div id="linksContainer" class="links-container"></div>
+      </div>
+    </div>
+
+    <script src="/js/telegram.js"></script>
+  </body>
+</html>

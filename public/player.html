@@ -5,12 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>فیلم بینا - پخش آنلاین</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
+      * { margin: 0; padding: 0; box-sizing: border-box; }
       :root {
         --primary: #6366f1;
         --secondary: #8b5cf6;
@@ -19,284 +14,287 @@
         --border: rgba(255, 255, 255, 0.08);
         --text: #f1f1f1;
         --muted: #888;
-        --font-shabnam: "ShabnamLightFD", system-ui, -apple-system, sans-serif;
       }
-
       @font-face {
         font-family: "ShabnamLightFD";
         src: url("/fonts/Shabnam-Light-FD.woff2") format("woff2"),
-          url("/fonts/Shabnam-Light-FD.woff") format("woff"),
-          url("/fonts/Shabnam-Light-FD.ttf") format("truetype"),
-          url("/fonts/Shabnam-Light-FD.eot");
+          url("/fonts/Shabnam-Light-FD.woff") format("woff");
         font-weight: 300;
-        font-style: normal;
         font-display: swap;
       }
-
       body {
-        font-family: var(--font-shabnam);
+        font-family: "ShabnamLightFD", system-ui, sans-serif;
         background: var(--bg);
         min-height: 100vh;
         display: flex;
         justify-content: center;
-        align-items: center;
         padding: 15px;
       }
-
       .container {
         background: var(--card);
-        padding: 30px;
+        padding: 25px;
         border-radius: 20px;
         width: 100%;
-        max-width: 900px;
+        max-width: 950px;
         border: 1px solid var(--border);
       }
-
       .header {
         text-align: center;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
       }
-
       .logo {
-        width: 60px;
-        height: 60px;
+        width: 50px;
+        height: 50px;
         background: linear-gradient(135deg, var(--primary), var(--secondary));
-        border-radius: 16px;
+        border-radius: 14px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 28px;
-        margin-bottom: 12px;
+        font-size: 24px;
+        margin-bottom: 10px;
       }
-
-      h1 {
+      h1 { color: var(--text); font-size: 22px; }
+      .subtitle { margin-top: 5px; font-size: 12px; color: var(--muted); }
+      .nav-row {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      .nav-btn {
+        padding: 8px 18px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid var(--border);
+        border-radius: 20px;
         color: var(--text);
-        font-size: 26px;
-        font-weight: 700;
-      }
-
-      .subtitle {
-        margin-top: 6px;
+        text-decoration: none;
         font-size: 13px;
-        color: var(--muted);
+        transition: all 0.2s;
       }
-
+      .nav-btn:hover { background: rgba(255,255,255,0.15); }
       .input-group {
         display: flex;
         gap: 10px;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
       }
-
       input {
         flex: 1;
-        padding: 15px 18px;
+        padding: 12px 16px;
         border: 2px solid var(--border);
-        border-radius: 12px;
+        border-radius: 10px;
         background: rgba(0, 0, 0, 0.3);
         color: var(--text);
-        font-size: 15px;
+        font-size: 14px;
         outline: none;
-        transition: border-color 0.2s;
       }
-
-      input:focus {
-        border-color: var(--primary);
-      }
-
-      input::placeholder {
-        color: var(--muted);
-      }
-
+      input:focus { border-color: var(--primary); }
       .btn {
-        padding: 15px 30px;
+        padding: 12px 25px;
         background: linear-gradient(135deg, var(--primary), var(--secondary));
         color: #fff;
         border: none;
-        border-radius: 12px;
+        border-radius: 10px;
         cursor: pointer;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
-        transition: transform 0.2s, opacity 0.2s;
       }
-
-      .btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
-      }
-
-      .loader {
-        display: none;
-        justify-content: center;
-        padding: 30px;
-      }
-
-      .loader.show {
-        display: flex;
-      }
-
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .loader { display: none; justify-content: center; padding: 25px; }
+      .loader.show { display: flex; }
       .spinner {
-        width: 40px;
-        height: 40px;
+        width: 35px;
+        height: 35px;
         border: 3px solid var(--border);
         border-top-color: var(--primary);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
+      @keyframes spin { to { transform: rotate(360deg); } }
       .video-container {
         display: none;
-        border-radius: 16px;
+        border-radius: 14px;
         overflow: hidden;
         background: #000;
-        margin-top: 10px;
+        margin-bottom: 15px;
       }
-
-      .video-container.show {
-        display: block;
-      }
-
-      video {
-        width: 100%;
-        display: block;
-      }
-
+      .video-container.show { display: block; }
+      video { width: 100%; display: block; }
       .status {
         text-align: center;
-        font-size: 14px;
-        margin-top: 15px;
-        padding: 10px;
+        font-size: 13px;
+        padding: 8px;
         border-radius: 8px;
+        margin-bottom: 15px;
       }
-
-      .status:empty {
-        display: none;
-      }
-
-      .status.error {
-        background: rgba(239, 68, 68, 0.1);
-        color: #f87171;
-      }
-
-      .status.success {
-        background: rgba(34, 197, 94, 0.1);
-        color: #4ade80;
-      }
-
-      .status.loading {
-        background: rgba(234, 179, 8, 0.1);
-        color: #facc15;
-      }
-
-      .features {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
-        margin-top: 25px;
-      }
-
-      .feature {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border);
-        border-radius: 10px;
+      .status:empty { display: none; }
+      .status.error { background: rgba(239, 68, 68, 0.1); color: #f87171; }
+      .status.success { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+      .status.loading { background: rgba(234, 179, 8, 0.1); color: #facc15; }
+      
+      /* Selection UI */
+      .selection-area {
+        background: rgba(0,0,0,0.2);
+        border-radius: 12px;
         padding: 15px;
-        text-align: center;
+        margin-bottom: 15px;
       }
-
-      .feature-icon {
-        font-size: 22px;
-        margin-bottom: 6px;
-        display: block;
+      .step-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
       }
-
-      .feature-text {
+      .step-num {
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, #feca57, #ff9f43);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        color: #000;
+      }
+      .step-title { color: #feca57; font-size: 14px; font-weight: bold; }
+      .back-link {
+        margin-right: auto;
         color: var(--muted);
         font-size: 12px;
+        cursor: pointer;
+        text-decoration: underline;
       }
-
-      .quality-bar {
-        margin-top: 12px;
+      .back-link:hover { color: var(--text); }
+      
+      /* Type buttons */
+      .type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+      }
+      .type-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12));
+        border: 2px solid rgba(99,102,241,0.25);
+        border-radius: 12px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .type-card:hover {
+        background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.25));
+        border-color: rgba(99,102,241,0.5);
+        transform: translateY(-2px);
+      }
+      .type-card .icon { font-size: 1.8rem; }
+      .type-card .info { flex: 1; }
+      .type-card .label { font-weight: bold; font-size: 14px; }
+      .type-card .meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+      
+      /* Quality buttons */
+      .quality-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+      }
+      .quality-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 16px 12px;
+        background: linear-gradient(135deg, rgba(162,155,254,0.12), rgba(129,140,248,0.12));
+        border: 2px solid rgba(162,155,254,0.25);
+        border-radius: 12px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .quality-card:hover {
+        background: linear-gradient(135deg, rgba(162,155,254,0.25), rgba(129,140,248,0.25));
+        border-color: rgba(162,155,254,0.5);
+        transform: translateY(-2px);
+      }
+      .quality-card .q-name { font-weight: bold; font-size: 13px; color: #a29bfe; }
+      .quality-card .q-meta { font-size: 11px; color: var(--muted); }
+      .quality-card .q-size { font-size: 10px; color: #2ecc71; background: rgba(46,204,113,0.15); padding: 2px 8px; border-radius: 8px; }
+      
+      /* Episode buttons */
+      .episode-grid {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
       }
-
-      .quality-pill {
-        padding: 6px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--border);
-        background: rgba(0, 0, 0, 0.5);
-        color: var(--text);
-        font-size: 12px;
+      .ep-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 14px;
+        background: rgba(255,255,255,0.05);
+        border: 2px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+        color: #fff;
         cursor: pointer;
+        transition: all 0.2s;
+        min-width: 70px;
       }
-
-      .quality-pill.active {
+      .ep-card:hover {
+        background: rgba(99,102,241,0.2);
+        border-color: rgba(99,102,241,0.4);
+      }
+      .ep-card.active {
+        background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3));
         border-color: var(--primary);
-        background: rgba(99, 102, 241, 0.3);
+        box-shadow: 0 0 15px rgba(99,102,241,0.3);
       }
-
-      .back-home {
-        display: inline-block;
-        margin-top: 10px;
-        font-size: 13px;
-        color: var(--muted);
-        text-decoration: none;
+      .ep-card .ep-num { font-weight: bold; font-size: 13px; color: var(--primary); }
+      .ep-card .ep-size { font-size: 10px; color: var(--muted); }
+      
+      /* Current selection display */
+      .current-selection {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
       }
-
-      .back-home:hover {
-        color: var(--text);
+      .sel-tag {
+        padding: 5px 12px;
+        background: rgba(254,202,87,0.15);
+        border: 1px solid rgba(254,202,87,0.3);
+        border-radius: 20px;
+        font-size: 12px;
+        color: #feca57;
       }
-
+      
       .footer {
-        margin-top: 25px;
+        margin-top: 20px;
         text-align: center;
-        padding-top: 20px;
+        padding-top: 15px;
         border-top: 1px solid var(--border);
       }
-
       .credit {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         color: var(--text);
-        font-size: 14px;
+        font-size: 13px;
       }
-
       .credit-name {
         background: linear-gradient(135deg, #a78bfa, #60a5fa);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
         font-weight: 700;
       }
-
-      @media (max-width: 768px) {
-        .container {
-          padding: 20px;
-        }
-
-        .input-group {
-          flex-direction: column;
-        }
-
-        .btn {
-          width: 100%;
-        }
-
-        .features {
-          grid-template-columns: repeat(2, 1fr);
-        }
+      @media (max-width: 600px) {
+        .container { padding: 15px; }
+        .input-group { flex-direction: column; }
+        .btn { width: 100%; }
+        .type-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -305,17 +303,12 @@
       <header class="header">
         <div class="logo">▶️</div>
         <h1>فیلم بینا</h1>
-        <p class="subtitle">
-          لینک ویدیو را وارد کنید یا از جزئیات فیلم روی پخش آنلاین بزنید
-        </p>
-        <a href="/" class="back-home">← بازگشت به صفحه اصلی</a>
-        <a
-          href="#"
-          id="backDetails"
-          class="back-home"
-          style="margin-right: 10px; display: none"
-          >← بازگشت به صفحه فیلم/سریال</a
-        >
+        <p class="subtitle">پخش آنلاین فیلم و سریال</p>
+        <div class="nav-row">
+          <a href="/" class="nav-btn">🎬 فیلم فارسی</a>
+          <a href="/telegram.html" class="nav-btn">🌍 فیلم خارجی</a>
+          <a href="#" id="backToMovie" class="nav-btn" style="display:none;">← برگشت به فیلم</a>
+        </div>
       </header>
 
       <div class="input-group">
@@ -323,36 +316,11 @@
         <button class="btn" id="btn">▶ پخش</button>
       </div>
 
-      <div class="loader" id="loader">
-        <div class="spinner"></div>
-      </div>
-
-      <div class="video-container" id="player">
-        <video id="video" controls playsinline></video>
-      </div>
-
+      <div class="loader" id="loader"><div class="spinner"></div></div>
+      <div class="video-container" id="player"><video id="video" controls playsinline></video></div>
       <div class="status" id="status"></div>
 
-      <div class="quality-bar" id="qualityBar"></div>
-
-      <div class="features">
-        <div class="feature">
-          <span class="feature-icon">⚡</span>
-          <span class="feature-text">پخش مستقیم</span>
-        </div>
-        <div class="feature">
-          <span class="feature-icon">🎬</span>
-          <span class="feature-text">سازگار با اکثر فرمتها</span>
-        </div>
-        <div class="feature">
-          <span class="feature-icon">📱</span>
-          <span class="feature-text">قابل استفاده روی موبایل و TV</span>
-        </div>
-        <div class="feature">
-          <span class="feature-icon">🔁</span>
-          <span class="feature-text">استفاده از کنترلهای خود مرورگر</span>
-        </div>
-      </div>
+      <div id="selectionArea"></div>
 
       <footer class="footer">
         <div class="credit">
@@ -364,43 +332,34 @@
     </div>
 
     <script>
-      const $ = (id) => document.getElementById(id);
+      const $ = id => document.getElementById(id);
       const urlInput = $("url");
       const btn = $("btn");
       const loader = $("loader");
       const player = $("player");
       const video = $("video");
       const statusEl = $("status");
-      const qualityBar = $("qualityBar");
-      const backDetails = $("backDetails");
+      const selectionArea = $("selectionArea");
+      const backToMovie = $("backToMovie");
 
-      const STREAM_KEY = "farsiland-current-stream";
+      let telegramData = null;
+      let selectedSubType = null;
+      let selectedQuality = null;
+      let sourceType = null; // 'telegram' or 'farsiland'
 
       const setStatus = (msg, type) => {
         statusEl.textContent = msg;
         statusEl.className = "status " + type;
       };
 
-      const loadStreamData = () => {
-        try {
-          const raw = localStorage.getItem(STREAM_KEY);
-          if (!raw) return null;
-          return JSON.parse(raw);
-        } catch (e) {
-          return null;
-        }
-      };
-
       function play(link) {
         if (!link) return setStatus("لینک را وارد کنید", "error");
-
         btn.disabled = true;
         loader.classList.add("show");
         player.classList.remove("show");
         setStatus("در حال بارگذاری...", "loading");
 
         video.src = "/stream?url=" + encodeURIComponent(link);
-
         video.onloadeddata = () => {
           loader.classList.remove("show");
           player.classList.add("show");
@@ -408,7 +367,6 @@
           btn.disabled = false;
           video.play().catch(() => {});
         };
-
         video.onerror = () => {
           loader.classList.remove("show");
           setStatus("خطا در بارگذاری", "error");
@@ -416,86 +374,273 @@
         };
       }
 
-      btn.onclick = () => {
-        const link = urlInput.value.trim();
-        play(link);
+      btn.onclick = () => play(urlInput.value.trim());
+      urlInput.onkeypress = e => { if (e.key === "Enter") btn.click(); };
+
+      // Grouping functions
+      function groupBySubType(downloads) {
+        const groups = {
+          dubbed: { label: 'Dubbed (دوبله)', icon: '🎙️', items: [] },
+          softsub: { label: 'SoftSub (زیرنویس جدا)', icon: '💬', items: [] },
+          hardsub: { label: 'HardSub (زیرنویس چسبیده)', icon: '📝', items: [] },
+          other: { label: 'Other (سایر)', icon: '📦', items: [] }
+        };
+        downloads.forEach(dl => {
+          if (dl.subType === 'dubbed') groups.dubbed.items.push(dl);
+          else if (dl.subType === 'softsub') groups.softsub.items.push(dl);
+          else if (dl.subType === 'hardsub') groups.hardsub.items.push(dl);
+          else groups.other.items.push(dl);
+        });
+        return groups;
+      }
+
+      function getQualityKey(dl) {
+        let key = dl.quality ? `${dl.quality}p` : '0p';
+        if (dl.codec) key += ` ${dl.codec}`;
+        if (dl.source) key += ` ${dl.source}`;
+        return key;
+      }
+
+      function groupByQuality(items) {
+        const groups = {};
+        items.forEach(dl => {
+          const key = getQualityKey(dl);
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(dl);
+        });
+        return Object.fromEntries(
+          Object.entries(groups).sort((a, b) => {
+            const qa = parseInt(a[0].match(/(\d+)p/)?.[1] || 0);
+            const qb = parseInt(b[0].match(/(\d+)p/)?.[1] || 0);
+            return qb - qa;
+          })
+        );
+      }
+
+      function formatSize(bytes) {
+        if (!bytes) return "";
+        const gb = bytes / (1024 * 1024 * 1024);
+        if (gb >= 1) return `${gb.toFixed(1)} GB`;
+        return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+      }
+
+      function renderSelection() {
+        if (!telegramData || !telegramData.downloads) {
+          selectionArea.innerHTML = '';
+          return;
+        }
+
+        const downloads = telegramData.downloads;
+        const isSeries = telegramData.type === "series" || downloads.some(d => d.episode);
+        const subTypeGroups = groupBySubType(downloads);
+
+        let html = '<div class="selection-area">';
+
+        // Step 1: Select Type
+        if (!selectedSubType) {
+          html += `
+            <div class="step-header">
+              <span class="step-num">1</span>
+              <span class="step-title">انتخاب نوع</span>
+            </div>
+            <div class="type-grid">
+          `;
+          for (const [key, group] of Object.entries(subTypeGroups)) {
+            if (group.items.length === 0) continue;
+            const qualityGroups = groupByQuality(group.items);
+            const qCount = Object.keys(qualityGroups).length;
+            const epCount = new Set(group.items.map(d => d.episode)).size;
+            html += `
+              <div class="type-card" onclick="selectType('${key}')">
+                <span class="icon">${group.icon}</span>
+                <div class="info">
+                  <div class="label">${group.label}</div>
+                  <div class="meta">${qCount} کیفیت • ${isSeries ? epCount + ' قسمت' : group.items.length + ' فایل'}</div>
+                </div>
+              </div>
+            `;
+          }
+          html += '</div>';
+        }
+        // Step 2: Select Quality
+        else if (!selectedQuality) {
+          const group = subTypeGroups[selectedSubType];
+          const qualityGroups = groupByQuality(group.items);
+
+          html += `
+            <div class="current-selection">
+              <span class="sel-tag">${group.icon} ${group.label}</span>
+            </div>
+            <div class="step-header">
+              <span class="step-num">2</span>
+              <span class="step-title">انتخاب کیفیت</span>
+              <span class="back-link" onclick="goBack('type')">← برگشت</span>
+            </div>
+            <div class="quality-grid">
+          `;
+          for (const [qKey, items] of Object.entries(qualityGroups)) {
+            const epCount = new Set(items.map(d => d.episode)).size;
+            const totalSize = items.reduce((s, d) => s + (d.sizeBytes || 0), 0);
+            const avgSize = items.length > 0 ? formatSize(totalSize / items.length) : '';
+            html += `
+              <div class="quality-card" onclick="selectQuality('${qKey.replace(/'/g, "\\'")}')">
+                <span class="q-name">${qKey}</span>
+                <span class="q-meta">${isSeries ? epCount + ' قسمت' : items.length + ' فایل'}</span>
+                ${avgSize ? `<span class="q-size">~${avgSize}</span>` : ''}
+              </div>
+            `;
+          }
+          html += '</div>';
+        }
+        // Step 3: Select Episode
+        else {
+          const group = subTypeGroups[selectedSubType];
+          const qualityGroups = groupByQuality(group.items);
+          const items = qualityGroups[selectedQuality] || [];
+
+          html += `
+            <div class="current-selection">
+              <span class="sel-tag">${group.icon} ${group.label}</span>
+              <span class="sel-tag">📀 ${selectedQuality}</span>
+            </div>
+            <div class="step-header">
+              <span class="step-num">3</span>
+              <span class="step-title">${isSeries ? 'انتخاب قسمت' : 'دانلود'}</span>
+              <span class="back-link" onclick="goBack('quality')">← برگشت</span>
+            </div>
+            <div class="episode-grid">
+          `;
+
+          items.sort((a, b) => (a.episode || 999) - (b.episode || 999));
+          items.forEach((dl, idx) => {
+            const epLabel = dl.episode ? `E${String(dl.episode).padStart(2, '0')}` : (isSeries ? 'DL' : dl.size || 'دانلود');
+            html += `
+              <div class="ep-card" onclick="playEpisode(${idx})" data-idx="${idx}">
+                <span class="ep-num">${epLabel}</span>
+                <span class="ep-size">${dl.size || ''}</span>
+              </div>
+            `;
+          });
+          html += '</div>';
+        }
+
+        html += '</div>';
+        selectionArea.innerHTML = html;
+      }
+
+      window.selectType = function(type) {
+        selectedSubType = type;
+        selectedQuality = null;
+        renderSelection();
       };
 
-      urlInput.onkeypress = (e) => {
-        if (e.key === "Enter") btn.click();
+      window.selectQuality = function(quality) {
+        selectedQuality = quality;
+        renderSelection();
       };
 
+      window.goBack = function(level) {
+        if (level === 'type') {
+          selectedSubType = null;
+          selectedQuality = null;
+        } else if (level === 'quality') {
+          selectedQuality = null;
+        }
+        renderSelection();
+      };
+
+      window.playEpisode = function(idx) {
+        const group = groupBySubType(telegramData.downloads)[selectedSubType];
+        const qualityGroups = groupByQuality(group.items);
+        const items = qualityGroups[selectedQuality] || [];
+        items.sort((a, b) => (a.episode || 999) - (b.episode || 999));
+        const dl = items[idx];
+        if (dl && dl.url) {
+          document.querySelectorAll('.ep-card').forEach(c => c.classList.remove('active'));
+          document.querySelector(`.ep-card[data-idx="${idx}"]`)?.classList.add('active');
+          play(dl.url);
+        }
+      };
+
+      // FarsiLand player
       async function playFromFileId(dl) {
         if (!dl || !dl.fileId) return;
-
         try {
-          const res = await fetch(
-            `/api/get-download?fileId=${encodeURIComponent(dl.fileId)}`
-          );
+          const res = await fetch(`/api/get-download?fileId=${encodeURIComponent(dl.fileId)}`);
           const data = await res.json();
-
           if (data.success && data.downloadUrl) {
             play(data.downloadUrl);
           } else {
-            setStatus("❌ خطا در دریافت لینک پخش آنلاین", "error");
+            setStatus("❌ خطا در دریافت لینک", "error");
           }
         } catch (e) {
-          setStatus("❌ خطا در اتصال برای پخش آنلاین", "error");
+          setStatus("❌ خطا در اتصال", "error");
         }
       }
 
-      function initQualitySelector(streamData) {
+      function initFarsilandPlayer(streamData) {
         if (!streamData || !Array.isArray(streamData.downloads)) return;
-
-        qualityBar.innerHTML = "";
-        const sorted = streamData.downloads
-          .slice()
-          .sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
-
+        selectionArea.innerHTML = '';
+        
+        const sorted = streamData.downloads.slice().sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
+        let html = '<div class="selection-area"><div class="step-header"><span class="step-num">📀</span><span class="step-title">انتخاب کیفیت</span></div><div class="episode-grid">';
+        
         sorted.forEach((dl, idx) => {
-          const btn = document.createElement("button");
-          btn.className = "quality-pill";
           const qLabel = dl.quality ? `${dl.quality}p` : "کیفیت";
           const sizePart = dl.size ? ` • ${dl.size}` : "";
-          btn.textContent = qLabel + sizePart;
-          btn.onclick = () => {
-            Array.from(qualityBar.children).forEach((c) =>
-              c.classList.remove("active")
-            );
-            btn.classList.add("active");
-            playFromFileId(dl);
-          };
-          if (idx === 0) btn.classList.add("active");
-          qualityBar.appendChild(btn);
+          html += `<div class="ep-card" onclick="playFarsiland(${idx})" data-idx="${idx}"><span class="ep-num">${qLabel}</span><span class="ep-size">${dl.size || ''}</span></div>`;
         });
+        
+        html += '</div></div>';
+        selectionArea.innerHTML = html;
+        
+        window.playFarsiland = function(idx) {
+          document.querySelectorAll('.ep-card').forEach(c => c.classList.remove('active'));
+          document.querySelector(`.ep-card[data-idx="${idx}"]`)?.classList.add('active');
+          playFromFileId(sorted[idx]);
+        };
+        
         if (sorted[0]) {
+          document.querySelector('.ep-card[data-idx="0"]')?.classList.add('active');
           playFromFileId(sorted[0]);
         }
       }
 
+      // Init
       const params = new URLSearchParams(window.location.search);
       const autoUrl = params.get("url");
-      if (autoUrl) {
-        const decoded = decodeURIComponent(autoUrl);
-        urlInput.value = decoded;
-        play(decoded);
-      } else {
-        const streamData = loadStreamData();
-        if (streamData) {
-          if (streamData.title) {
-            urlInput.placeholder = `پخش آنلاین ${streamData.title}`;
-          }
-          if (streamData.source && backDetails) {
-            backDetails.style.display = "inline-block";
-            backDetails.onclick = (e) => {
-              e.preventDefault();
-              window.location.href = streamData.source;
-            };
-          }
+      const source = params.get("source");
 
-          if (streamData.downloads && streamData.downloads.length) {
-            initQualitySelector(streamData);
+      if (autoUrl) {
+        urlInput.value = decodeURIComponent(autoUrl);
+        play(decodeURIComponent(autoUrl));
+      } else if (source === "telegram") {
+        sourceType = 'telegram';
+        try {
+          telegramData = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
+          if (telegramData.title) urlInput.placeholder = `پخش: ${telegramData.title}`;
+          backToMovie.style.display = "inline-block";
+          backToMovie.href = "/telegram.html";
+          renderSelection();
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        sourceType = 'farsiland';
+        try {
+          const streamData = JSON.parse(localStorage.getItem("farsiland-current-stream") || "null");
+          if (streamData) {
+            if (streamData.title) urlInput.placeholder = `پخش: ${streamData.title}`;
+            if (streamData.source) {
+              backToMovie.style.display = "inline-block";
+              backToMovie.href = streamData.source;
+            }
+            if (streamData.downloads && streamData.downloads.length) {
+              initFarsilandPlayer(streamData);
+            }
           }
+        } catch (e) {
+          console.error(e);
         }
       }
     </script>
