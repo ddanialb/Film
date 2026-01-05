@@ -14,23 +14,30 @@ const phone = process.env.TELEGRAM_PHONE;
 const twoFaPassword = process.env.TELEGRAM_2FA_PASSWORD || "";
 const proxyIp = process.env.TELEGRAM_PROXY_IP || "";
 const proxyPort = parseInt(process.env.TELEGRAM_PROXY_PORT) || 0;
-const proxySecret = process.env.TELEGRAM_PROXY_SECRET || "";
-
-// System SOCKS proxy (e.g., from V2Ray, Clash, etc.)
+const proxySecret = process.env.TELEGRAM_PROXY_SECRET || "";
 const socksProxyHost = process.env.SOCKS_PROXY_HOST || "";
 const socksProxyPort = parseInt(process.env.SOCKS_PROXY_PORT) || 0;
 
 const SESSION_FILE = path.join(__dirname, "../data/telegram_session.txt");
 const CACHE_FILE = path.join(__dirname, "../data/playlist_cache.json");
-const BOT_USERNAME = "StreamWideBot";
-
-// Playlist cache - maps IMDB ID to playlist ID
+const BOT_USERNAME = "StreamWideBot";
 let playlistCache = {};
-
-// Load cache on startup
+const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
 try {
   if (fs.existsSync(CACHE_FILE)) {
-    playlistCache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
+    playlistCache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
+    const now = Date.now();
+    let cleaned = 0;
+    for (const key of Object.keys(playlistCache)) {
+      if (now - playlistCache[key].cachedAt > CACHE_EXPIRY) {
+        delete playlistCache[key];
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      saveCache();
+      console.log(`🗑️ Cleaned ${cleaned} expired cache entries`);
+    }
     console.log(`📦 Loaded ${Object.keys(playlistCache).length} cached playlists`);
   }
 } catch(e) {}
@@ -42,16 +49,54 @@ function saveCache() {
 }
 
 function getCachedPlaylist(imdbId) {
-  return playlistCache[imdbId] || null;
+  const cached = playlistCache[imdbId];
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt > CACHE_EXPIRY) {
+    console.log(`⏰ Cache expired for ${imdbId}`);
+    delete playlistCache[imdbId];
+    saveCache();
+    return null;
+  }
+  
+  return cached;
 }
 
-function cachePlaylist(imdbId, playlistId, type = "movie", seasons = null) {
+function cachePlaylist(imdbId, playlistId, type = "movie", seasons = null) {
+  if (!imdbId || !imdbId.startsWith('tt')) {
+    console.log(`⚠️ Invalid IMDB ID, not caching: ${imdbId}`);
+    return;
+  }
+  if (type === "series" && seasons) {
+    if (!Array.isArray(seasons) || seasons.length === 0) {
+      console.log(`⚠️ Invalid seasons data, not caching: ${imdbId}`);
+      return;
+    }
+    const validSeasons = seasons.every(s => s.seasonId && s.seasonNum);
+    if (!validSeasons) {
+      console.log(`⚠️ Invalid season entries, not caching: ${imdbId}`);
+      return;
+    }
+  }
+  if (type === "movie" && !playlistId) {
+    console.log(`⚠️ No playlistId for movie, not caching: ${imdbId}`);
+    return;
+  }
+  
   playlistCache[imdbId] = { playlistId, type, seasons, cachedAt: Date.now() };
   saveCache();
-  console.log(`💾 Cached: ${imdbId} -> ${playlistId}`);
+  console.log(`💾 Cached: ${imdbId} -> ${type === "series" ? seasons.length + " seasons" : playlistId}`);
 }
 
-// Search StreamWide API by title (using q= parameter)
+function clearCache(imdbId = null) {
+  if (imdbId) {
+    delete playlistCache[imdbId];
+    console.log(`🗑️ Cleared cache for ${imdbId}`);
+  } else {
+    playlistCache = {};
+    console.log(`🗑️ Cleared all cache`);
+  }
+  saveCache();
+}
 async function searchStreamWideByTitle(title, imdbId = null) {
   console.log(`🔍 Searching StreamWide for: ${title}`);
   
@@ -71,17 +116,14 @@ async function searchStreamWideByTitle(title, imdbId = null) {
 
     const data = response.data;
     
-    if (data.results && data.results.length > 0) {
-      // If we have IMDB ID, find exact match
+    if (data.results && data.results.length > 0) {
       if (imdbId) {
         const exactMatch = data.results.find(p => p.imdb_id === imdbId);
         if (exactMatch) {
           console.log(`✅ Found exact IMDB match: ${exactMatch.id} - ${exactMatch.title}`);
           return exactMatch;
         }
-      }
-      
-      // Return first result
+      }
       console.log(`✅ Found: ${data.results[0].id} - ${data.results[0].title}`);
       return data.results[0];
     }
@@ -91,15 +133,11 @@ async function searchStreamWideByTitle(title, imdbId = null) {
     console.error("StreamWide search error:", error.message);
     return null;
   }
-}
-
-// StreamWide API
+}
 const STREAMWIDE_API = "https://120e0b2c-b7e9-466f-ba0f-8ca6c6d10dd6.streamwide.tv/api/v1";
 let streamwideToken = null;
 let streamwideRefreshToken = null;
-let tokenExpiry = 0;
-
-// Load saved refresh token on startup (from ENV or file)
+let tokenExpiry = 0;
 try {
   if (process.env.STREAMWIDE_REFRESH_TOKEN) {
     streamwideRefreshToken = process.env.STREAMWIDE_REFRESH_TOKEN;
@@ -116,16 +154,15 @@ try {
 
 let client = null;
 let isConnected = false;
+let isLoggingIn = false; // Prevent concurrent login attempts
+let isConnecting = false; // Prevent concurrent connection attempts
 
 function loadSession() {
-  try {
-    // First try from ENV
+  try {
     if (process.env.TELEGRAM_SESSION) {
       console.log("📦 Loading session from ENV");
       return process.env.TELEGRAM_SESSION;
-    }
-    
-    // Then try from file
+    }
     if (fs.existsSync(SESSION_FILE)) {
       console.log("📦 Loading session from file");
       return fs.readFileSync(SESSION_FILE, "utf8").trim();
@@ -135,8 +172,7 @@ function loadSession() {
 }
 
 function saveSession(session) {
-  try {
-    // Save to file
+  try {
     fs.writeFileSync(SESSION_FILE, session);
     console.log("✅ Session saved to file");
     console.log("💡 Add to .env: TELEGRAM_SESSION=" + session.substring(0, 50) + "...");
@@ -152,9 +188,7 @@ function getClientOptions() {
     useWSS: false,
     retryDelay: 1000,
     autoReconnect: true,
-  };
-
-  // Use system SOCKS5 proxy only if BOTH host and port are configured
+  };
   if (socksProxyHost && socksProxyHost.trim() !== "" && socksProxyPort && socksProxyPort > 0) {
     console.log(`🌐 Using SOCKS5 proxy: ${socksProxyHost}:${socksProxyPort}`);
     options.proxy = {
@@ -170,7 +204,18 @@ function getClientOptions() {
   return options;
 }
 
-async function initClient() {
+async function initClient() {
+  if (isConnecting) {
+    console.log("⏳ Connection already in progress, waiting...");
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      if (!isConnecting && client && isConnected) {
+        return client;
+      }
+    }
+    throw new Error("Connection timeout - another connection attempt is in progress");
+  }
+
   if (client && isConnected) {
     try {
       const authorized = await client.isUserAuthorized();
@@ -183,14 +228,14 @@ async function initClient() {
     }
   }
 
-  const savedSession = loadSession();
-  const stringSession = new StringSession(savedSession);
-
-  // Try with proxy first (if configured)
-  let clientOptions = getClientOptions();
-  client = new TelegramClient(stringSession, apiId, apiHash, clientOptions);
-
+  isConnecting = true;
+  
   try {
+    const savedSession = loadSession();
+    const stringSession = new StringSession(savedSession);
+    let clientOptions = getClientOptions();
+    client = new TelegramClient(stringSession, apiId, apiHash, clientOptions);
+
     await client.connect();
     
     const authorized = await client.isUserAuthorized();
@@ -203,81 +248,95 @@ async function initClient() {
     console.log("⚠️ Telegram: Not authorized, need to login");
     return client;
   } catch (e) {
-    console.error("Connection error with proxy:", e.message);
-    
-    // If proxy failed, try without proxy
-    if (clientOptions.proxy) {
-      console.log("🔄 Retrying without proxy...");
-      delete clientOptions.proxy;
-      client = new TelegramClient(stringSession, apiId, apiHash, clientOptions);
-      
-      try {
-        await client.connect();
-        const authorized = await client.isUserAuthorized();
-        if (authorized) {
-          isConnected = true;
-          console.log("✅ Telegram: Connected without proxy");
-          return client;
-        }
-        return client;
-      } catch (e2) {
-        console.error("Connection error without proxy:", e2.message);
-        throw e2;
+    console.error("Connection error:", e.message);
+    client = null;
+    isConnected = false;
+    if (e.message && (e.message.includes("AUTH_KEY_DUPLICATED") || e.message.includes("AUTH_KEY_UNREGISTERED"))) {
+      console.log("⚠️ Session invalid. Clearing session...");
+      if (fs.existsSync(SESSION_FILE)) {
+        fs.unlinkSync(SESSION_FILE);
+        console.log("🗑️ Old session file deleted");
       }
+      throw new Error("Session invalid. Please login again with POST /api/telegram/login");
+    }
+    if (e.message && e.message.includes("ETIMEDOUT")) {
+      console.log("⏱️ Connection timeout. Check if your proxy (V2Ray/Clash) is running.");
+      throw new Error("Connection timeout. Make sure your proxy is running on " + 
+        (socksProxyHost || "127.0.0.1") + ":" + (socksProxyPort || 10808));
     }
     
     throw e;
+  } finally {
+    isConnecting = false;
   }
 }
 
-async function doLogin() {
-  await initClient();
-  
-  if (await client.isUserAuthorized()) {
-    console.log("✅ Already logged in");
-    return true;
+async function doLogin() {
+  if (isLoggingIn) {
+    console.log("⏳ Login already in progress...");
+    throw new Error("Login already in progress. Please wait.");
   }
-
-  console.log("🔐 Starting Telegram login...");
-  console.log("📱 Phone:", phone);
-
+  
+  isLoggingIn = true;
+  
   try {
+    await initClient();
+    
+    if (await client.isUserAuthorized()) {
+      console.log("✅ Already logged in");
+      isConnected = true;
+      return true;
+    }
+
+    console.log("🔐 Starting Telegram login...");
+    console.log("📱 Phone:", phone);
+
     await client.start({
       phoneNumber: phone,
-      password: async () => twoFaPassword,
+      password: async () => {
+        console.log("🔑 2FA password required");
+        return twoFaPassword;
+      },
       phoneCode: async () => {
         console.log("📱 Check your Telegram for the code!");
         console.log("💡 Create file 'data/telegram_code.txt' with the code");
         
-        const codeFile = path.join(__dirname, "../data/telegram_code.txt");
+        const codeFile = path.join(__dirname, "../data/telegram_code.txt");
         for (let i = 0; i < 60; i++) {
           await new Promise(r => setTimeout(r, 2000));
           if (fs.existsSync(codeFile)) {
             const code = fs.readFileSync(codeFile, "utf8").trim();
-            fs.unlinkSync(codeFile);
-            console.log("✅ Code received:", code);
-            return code;
+            if (code && code.length > 0) {
+              fs.unlinkSync(codeFile);
+              console.log("✅ Code received:", code);
+              return code;
+            }
           }
         }
-        throw new Error("Timeout waiting for code");
+        throw new Error("Timeout waiting for code (2 minutes)");
       },
-      onError: (err) => console.error("Login error:", err.message),
+      onError: (err) => {
+        console.error("Login error:", err.message);
+      },
     });
 
     const session = client.session.save();
     saveSession(session);
     isConnected = true;
     console.log("✅ Telegram: Login successful!");
+    console.log("💡 Add to .env: TELEGRAM_SESSION=" + session);
     return true;
   } catch (error) {
     console.error("❌ Login failed:", error.message);
-    return false;
+    isConnected = false;
+    throw error;
+  } finally {
+    isLoggingIn = false;
   }
 }
 
 router.get("/status", async (req, res) => {
-  try {
-    // Don't try to init if not already connected - just check
+  try {
     if (client && isConnected) {
       try {
         const authorized = await client.isUserAuthorized();
@@ -291,11 +350,25 @@ router.get("/status", async (req, res) => {
   } catch (error) {
     res.json({ success: false, connected: false, error: error.message });
   }
+});
+router.delete("/cache/:imdbId?", (req, res) => {
+  const { imdbId } = req.params;
+  clearCache(imdbId || null);
+  res.json({ success: true, message: imdbId ? `Cleared cache for ${imdbId}` : "Cleared all cache" });
+});
+router.get("/cache", (req, res) => {
+  const entries = Object.entries(playlistCache).map(([id, data]) => ({
+    imdbId: id,
+    type: data.type,
+    seasons: data.seasons?.length || 0,
+    cachedAt: new Date(data.cachedAt).toISOString(),
+    age: Math.round((Date.now() - data.cachedAt) / 1000 / 60) + " minutes"
+  }));
+  res.json({ success: true, count: entries.length, entries });
 });
 
 router.post("/login", async (req, res) => {
-  try {
-    // Prevent multiple simultaneous login attempts
+  try {
     if (client && isConnected) {
       try {
         if (await client.isUserAuthorized()) {
@@ -322,9 +395,7 @@ router.post("/code", async (req, res) => {
   } catch (error) {
     res.json({ success: false, error: error.message });
   }
-});
-
-// Generate Telegram WebApp initData
+});
 async function generateInitData(botId) {
   if (!client || !(await client.isUserAuthorized())) {
     throw new Error("Not logged in");
@@ -336,9 +407,7 @@ async function generateInitData(botId) {
   const lastName = me.lastName || "";
   const username = me.username || "";
   
-  const authDate = Math.floor(Date.now() / 1000);
-  
-  // User data for initData
+  const authDate = Math.floor(Date.now() / 1000);
   const user = {
     id: parseInt(userId),
     first_name: firstName,
@@ -346,42 +415,27 @@ async function generateInitData(botId) {
     username: username,
     language_code: "en",
     allows_write_to_pm: true,
-  };
-
-  // Build query string (sorted alphabetically)
+  };
   const params = {
     auth_date: authDate.toString(),
     query_id: `AAH${userId}AQAAAA`,
     user: JSON.stringify(user),
-  };
-
-  // Create data-check-string (sorted params)
+  };
   const dataCheckString = Object.keys(params)
     .sort()
     .map(key => `${key}=${params[key]}`)
-    .join("\n");
-
-  // Generate hash using bot token (we'll use a workaround)
-  // For WebApp auth, we need to create a valid hash
-  // The hash is HMAC-SHA256 of data-check-string with secret key
-  // Secret key = HMAC-SHA256 of bot_token with "WebAppData"
-  
-  // Since we don't have bot token, we'll send raw initData and let StreamWide validate via Telegram
+    .join("\n");
   const initData = Object.keys(params)
     .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
     .join("&");
 
   console.log(`📱 Generated initData for user ${userId}`);
   return { initData, userId, user };
-}
-
-// Authenticate with StreamWide API using Telegram initData
+}
 async function authenticateStreamWide(initDataRaw = null) {
   if (streamwideToken && Date.now() < tokenExpiry) {
     return streamwideToken;
-  }
-
-  // Try refresh token first
+  }
   if (streamwideRefreshToken) {
     try {
       console.log("🔄 Refreshing StreamWide token...");
@@ -401,9 +455,7 @@ async function authenticateStreamWide(initDataRaw = null) {
     } catch (e) {
       console.log("⚠️ Refresh failed:", e.response?.data || e.message);
     }
-  }
-
-  // Use provided initDataRaw or generate one
+  }
   if (!initDataRaw) {
     try {
       const generated = await generateInitData();
@@ -416,8 +468,7 @@ async function authenticateStreamWide(initDataRaw = null) {
 
   console.log("🔐 Authenticating with StreamWide using initData...");
   
-  try {
-    // StreamWide expects initDataRaw in the request
+  try {
     const response = await axios.post(`${STREAMWIDE_API}/accounts/telegram/auth/`, {
       initData: initDataRaw,
     }, {
@@ -433,9 +484,7 @@ async function authenticateStreamWide(initDataRaw = null) {
       streamwideToken = response.data.access;
       streamwideRefreshToken = response.data.refresh;
       tokenExpiry = Date.now() + 600000; // 10 minutes
-      console.log("✅ StreamWide authenticated!");
-      
-      // Save refresh token to file for persistence
+      console.log("✅ StreamWide authenticated!");
       try {
         const refreshFile = path.join(__dirname, "../data/streamwide_refresh.txt");
         fs.writeFileSync(refreshFile, streamwideRefreshToken);
@@ -449,25 +498,19 @@ async function authenticateStreamWide(initDataRaw = null) {
   }
 
   throw new Error("Could not authenticate with StreamWide");
-}
-
-// Load saved refresh token on startup
+}
 try {
   const savedRefresh = fs.readFileSync(path.join(__dirname, "../data/streamwide_refresh.txt"), "utf8").trim();
   if (savedRefresh) {
     streamwideRefreshToken = savedRefresh;
     console.log("📦 Loaded saved refresh token");
   }
-} catch(e) {}
-
-// Fetch videos from StreamWide API
+} catch(e) {}
 async function fetchStreamWideVideos(playlistId, token = null) {
   console.log(`📥 Fetching videos for playlist: ${playlistId}`);
   
   try {
-    let authToken = token || streamwideToken;
-    
-    // Try to refresh if no token
+    let authToken = token || streamwideToken;
     if (!authToken && streamwideRefreshToken) {
       try {
         await authenticateStreamWide();
@@ -516,13 +559,9 @@ async function fetchStreamWideVideos(playlistId, token = null) {
           }
         } else {
           fullUrl = `https://ant.out.p${domainKey}.streamwide.tv${video.url}`;
-        }
-        
-        // Extract filename from URL
+        }
         const urlMatch = video.url.match(/\/([^\/]+)$/);
-        const fileName = urlMatch ? urlMatch[1] : (video.file_name || "");
-        
-        // Parse filename for metadata
+        const fileName = urlMatch ? urlMatch[1] : (video.file_name || "");
         const parsed = parseFileName(fileName);
         
         downloads.push({
@@ -541,9 +580,7 @@ async function fetchStreamWideVideos(playlistId, token = null) {
     console.error("StreamWide API error:", error.response?.data || error.message);
     return [];
   }
-}
-
-// Parse filename to extract season, episode, quality, codec, subtype
+}
 function parseFileName(fileName) {
   const result = {
     season: null,
@@ -554,22 +591,16 @@ function parseFileName(fileName) {
     source: "",
   };
   
-  if (!fileName) return result;
-  
-  // Season & Episode: S01E05, S1E5, etc
+  if (!fileName) return result;
   const seMatch = fileName.match(/S(\d{1,2})E(\d{1,3})/i);
   if (seMatch) {
     result.season = parseInt(seMatch[1]);
     result.episode = parseInt(seMatch[2]);
-  }
-  
-  // Quality: 1080p, 720p, 480p, 2160p
+  }
   const qualityMatch = fileName.match(/(\d{3,4})p/i);
   if (qualityMatch) {
     result.quality = qualityMatch[1];
-  }
-  
-  // Codec: x264, x265, HEVC, H.264, H.265 (prioritize x265/x264 over 10bit)
+  }
   const codecMatch = fileName.match(/(x26[45]|hevc|h\.?26[45])/i);
   if (codecMatch) {
     let codec = codecMatch[1].toUpperCase().replace('H.', 'H');
@@ -577,20 +608,14 @@ function parseFileName(fileName) {
     if (codec === 'H265') codec = 'x265';
     if (codec === 'H264') codec = 'x264';
     result.codec = codec;
-  }
-  
-  // Check for 10bit separately (add to codec if present)
+  }
   if (fileName.toLowerCase().includes('10bit') || fileName.includes('10-bit')) {
     result.codec = result.codec ? `${result.codec} 10bit` : '10bit';
-  }
-  
-  // Source: BluRay, WEB-DL, WEBRip, HDTV
+  }
   const sourceMatch = fileName.match(/(bluray|web-?dl|webrip|hdtv|dvdrip|bdrip)/i);
   if (sourceMatch) {
     result.source = sourceMatch[1].toUpperCase().replace('WEBDL', 'WEB-DL');
-  }
-  
-  // SubType: Dubbed, HardSub, SoftSub
+  }
   const lower = fileName.toLowerCase();
   if (lower.includes('dubbed') || lower.includes('dub.') || lower.includes('.farsi.') || lower.includes('farsi-')) {
     result.subType = "dubbed";
@@ -610,19 +635,14 @@ function formatSize(bytes) {
   if (gb >= 1) return `${gb.toFixed(2)} GB`;
   const mb = bytes / (1024 * 1024);
   return `${mb.toFixed(0)} MB`;
-}
-
-// Search playlist by IMDB ID directly from StreamWide API (no Telegram needed!)
+}
 async function searchPlaylistByImdb(imdbId) {
   console.log(`🔍 Searching StreamWide for IMDB: ${imdbId}`);
   
-  try {
-    // Ensure we have a valid token
+  try {
     if (!streamwideToken || Date.now() >= tokenExpiry) {
       await authenticateStreamWide();
-    }
-    
-    // Search with exact IMDB ID filter
+    }
     const response = await axios.get(`${STREAMWIDE_API}/playlists/`, {
       params: { imdb_id: imdbId },
       headers: {
@@ -634,18 +654,13 @@ async function searchPlaylistByImdb(imdbId) {
 
     const data = response.data;
     
-    if (data.results && data.results.length > 0) {
-      // Find exact match by IMDB ID
+    if (data.results && data.results.length > 0) {
       const exactMatch = data.results.find(p => p.imdb_id === imdbId);
       if (exactMatch) {
         console.log(`✅ Found exact match: ${exactMatch.id} - ${exactMatch.title}`);
         return exactMatch;
-      }
-      
-      // No exact match found in first page, try searching more pages
-      console.log(`⚠️ No exact match in page 1, checking more...`);
-      
-      // Check if there are more pages
+      }
+      console.log(`⚠️ No exact match in page 1, checking more...`);
       let nextUrl = data.next;
       let pageCount = 1;
       const maxPages = 10;
@@ -684,9 +699,7 @@ async function searchPlaylistByImdb(imdbId) {
     console.error("StreamWide search error:", error.response?.data || error.message);
     return null;
   }
-}
-
-// Get download links - check cache, then API, then Telegram bot
+}
 router.get("/get-links", async (req, res) => {
   try {
     const { imdbId, title } = req.query;
@@ -695,9 +708,7 @@ router.get("/get-links", async (req, res) => {
       return res.json({ success: false, error: "IMDB ID required" });
     }
 
-    const cleanId = imdbId.startsWith("tt") ? imdbId : `tt${imdbId}`;
-
-    // Ensure we have a valid token
+    const cleanId = imdbId.startsWith("tt") ? imdbId : `tt${imdbId}`;
     if (!streamwideToken || Date.now() >= tokenExpiry) {
       console.log("🔄 Refreshing token...");
       try {
@@ -705,9 +716,7 @@ router.get("/get-links", async (req, res) => {
       } catch(e) {
         console.log("Token refresh failed:", e.message);
       }
-    }
-
-    // 1. CHECK CACHE FIRST - no API/Telegram needed!
+    }
     const cached = getCachedPlaylist(cleanId);
     if (cached) {
       console.log(`✅ Cache hit for ${cleanId}`);
@@ -739,80 +748,32 @@ router.get("/get-links", async (req, res) => {
         }
       }
       console.log("⚠️ Cache hit but no videos, refreshing...");
-    }
-
-    // 2. TRY STREAMWIDE API SEARCH (no Telegram needed!)
+    }
     if (title) {
       const playlist = await searchStreamWideByTitle(title, cleanId);
       
       if (playlist && playlist.imdb_id === cleanId) {
         const playlistId = playlist.id;
-        const isSeries = playlist.type === "TVS";
-        
+        const isSeries = playlist.type === "TVS";
         if (isSeries) {
-          // For series, try to get seasons
-          try {
-            const seasonsResponse = await axios.get(`${STREAMWIDE_API}/playlists/${playlistId}/seasons/`, {
-              headers: { "Authorization": `Bearer ${streamwideToken}` },
-              timeout: 15000,
+          console.log("📺 Series detected, using Telegram bot for seasons...");
+        } else {
+          const downloads = await fetchStreamWideVideos(playlistId);
+          if (downloads.length > 0) {
+            cachePlaylist(cleanId, playlistId, "movie");
+            return res.json({
+              success: true,
+              imdbId: cleanId,
+              type: "movie",
+              title: playlist.title,
+              poster: playlist.poster,
+              playlistId,
+              downloads,
             });
-            
-            let seasons = [];
-            const seasonsData = seasonsResponse.data;
-            
-            if (Array.isArray(seasonsData)) {
-              seasons = seasonsData.map((s, idx) => ({
-                text: `فصل ${s.season_number || idx + 1}`,
-                seasonNum: s.season_number || idx + 1,
-                seasonId: s.id,
-              }));
-            } else if (seasonsData.results) {
-              seasons = seasonsData.results.map((s, idx) => ({
-                text: `فصل ${s.season_number || idx + 1}`,
-                seasonNum: s.season_number || idx + 1,
-                seasonId: s.id,
-              }));
-            }
-            
-            if (seasons.length > 0) {
-              const downloads = await fetchStreamWideVideos(seasons[0].seasonId);
-              if (downloads.length > 0) {
-                cachePlaylist(cleanId, null, "series", seasons);
-                return res.json({
-                  success: true,
-                  imdbId: cleanId,
-                  type: "series",
-                  title: playlist.title,
-                  poster: playlist.poster,
-                  seasons,
-                  currentSeason: seasons[0].seasonNum,
-                  downloads,
-                });
-              }
-            }
-          } catch(e) {
-            console.log("Seasons error:", e.message);
           }
         }
-        
-        // Movie or series without seasons endpoint
-        const downloads = await fetchStreamWideVideos(playlistId);
-        if (downloads.length > 0) {
-          cachePlaylist(cleanId, playlistId, isSeries ? "series" : "movie");
-          return res.json({
-            success: true,
-            imdbId: cleanId,
-            type: isSeries ? "series" : "movie",
-            title: playlist.title,
-            poster: playlist.poster,
-            playlistId,
-            downloads,
-          });
-        }
       }
-    }
-
-    // 3. FALLBACK TO TELEGRAM BOT
+    }
     if (!client || !isConnected) {
       console.log("⚠️ Telegram not connected, trying to connect...");
       try {
@@ -848,15 +809,16 @@ router.get("/get-links", async (req, res) => {
         );
 
         if (inlineResults.results && inlineResults.results.length > 0) {
-          const firstResult = inlineResults.results[0];
-          
-          // Check if inline result has buttons (no message needed!)
+          const firstResult = inlineResults.results[0];
           let moviePlaylistId = null;
           let seasons = [];
           
           if (firstResult.sendMessage && firstResult.sendMessage.replyMarkup && firstResult.sendMessage.replyMarkup.rows) {
             console.log("📋 Found buttons in inline result (no message sent!)");
+            console.log(`📊 Total rows: ${firstResult.sendMessage.replyMarkup.rows.length}`);
+            let totalButtons = 0;
             for (const row of firstResult.sendMessage.replyMarkup.rows) {
+              totalButtons += row.buttons?.length || 0;
               for (const button of row.buttons) {
                 const btnUrl = button.url || '';
                 const btnText = button.text || '';
@@ -878,9 +840,8 @@ router.get("/get-links", async (req, res) => {
                 }
               }
             }
-          }
-          
-          // If found from inline result buttons
+            console.log(`📊 Total buttons: ${totalButtons}, Seasons found: ${seasons.length}`);
+          }
           if (seasons.length > 0) {
             cachePlaylist(cleanId, null, "series", seasons);
             const downloads = await fetchStreamWideVideos(seasons[0].seasonId);
@@ -904,9 +865,7 @@ router.get("/get-links", async (req, res) => {
               playlistId: moviePlaylistId,
               downloads,
             });
-          }
-          
-          // Last resort: send message to bot
+          }
           console.log("📨 Sending message to bot...");
           await client.invoke(
             new Api.messages.SendInlineBotResult({
@@ -915,20 +874,15 @@ router.get("/get-links", async (req, res) => {
               id: firstResult.id,
               randomId: BigInt(Math.floor(Math.random() * 1e15)),
             })
-          );
-
-          // Wait for bot response with retry (up to 15 seconds)
+          );
           let latestMsg = null;
           for (let attempt = 1; attempt <= 5; attempt++) {
             console.log(`⏳ Waiting for bot response... (attempt ${attempt}/5)`);
             await new Promise(r => setTimeout(r, 3000));
             
-            const messages = await client.getMessages(bot, { limit: 3 });
-            
-            // Find a message with buttons (reply markup)
+            const messages = await client.getMessages(bot, { limit: 3 });
             for (const msg of messages) {
-              if (msg && msg.replyMarkup && msg.replyMarkup.rows && msg.replyMarkup.rows.length > 0) {
-                // Check if this message has relevant buttons
+              if (msg && msg.replyMarkup && msg.replyMarkup.rows && msg.replyMarkup.rows.length > 0) {
                 const hasRelevantButtons = msg.replyMarkup.rows.some(row => 
                   row.buttons.some(btn => {
                     const url = btn.url || '';
@@ -945,13 +899,14 @@ router.get("/get-links", async (req, res) => {
             }
             
             if (latestMsg) break;
-          }
-
-          // Process the message if found
+          }
           if (latestMsg && latestMsg.replyMarkup && latestMsg.replyMarkup.rows) {
             console.log(`📝 Processing bot response`);
+            console.log(`📊 Total rows: ${latestMsg.replyMarkup.rows.length}`);
+            let totalButtons = 0;
             
             for (const row of latestMsg.replyMarkup.rows) {
+              totalButtons += row.buttons?.length || 0;
               for (const button of row.buttons) {
                 const btnUrl = button.url || '';
                 const btnText = button.text || '';
@@ -974,6 +929,7 @@ router.get("/get-links", async (req, res) => {
                 }
               }
             }
+            console.log(`📊 Total buttons: ${totalButtons}, Seasons found: ${seasons.length}`);
           } else {
             console.log("⚠️ No response from bot after 15 seconds");
           }
@@ -1014,9 +970,7 @@ router.get("/get-links", async (req, res) => {
     console.error("❌ Get links error:", error);
     res.json({ success: false, error: error.message });
   }
-});
-
-// Get links for specific season by seasonId
+});
 router.get("/get-season", async (req, res) => {
   try {
     const { seasonId } = req.query;
@@ -1034,9 +988,7 @@ router.get("/get-season", async (req, res) => {
   } catch (error) {
     res.json({ success: false, error: error.message });
   }
-});
-
-// Manual token endpoint - user can provide token from browser
+});
 router.post("/set-token", async (req, res) => {
   try {
     const { access, refresh, initData } = req.body;
@@ -1048,17 +1000,14 @@ router.post("/set-token", async (req, res) => {
     }
     
     if (refresh) {
-      streamwideRefreshToken = refresh;
-      // Save for persistence
+      streamwideRefreshToken = refresh;
       try {
         const refreshFile = path.join(__dirname, "../data/streamwide_refresh.txt");
         fs.writeFileSync(refreshFile, refresh);
         console.log("💡 Add to .env: STREAMWIDE_REFRESH_TOKEN=" + refresh.substring(0, 50) + "...");
       } catch(e) {}
       console.log("✅ Refresh token set manually");
-    }
-    
-    // If initData provided, try to authenticate
+    }
     if (initData && !access) {
       try {
         const token = await authenticateStreamWide(initData);
@@ -1074,9 +1023,7 @@ router.post("/set-token", async (req, res) => {
   } catch (error) {
     res.json({ success: false, error: error.message });
   }
-});
-
-// Refresh token endpoint
+});
 router.post("/refresh-token", async (req, res) => {
   try {
     if (!streamwideRefreshToken) {
@@ -1102,9 +1049,7 @@ router.post("/refresh-token", async (req, res) => {
     console.error("Refresh error:", error.response?.data || error.message);
     res.json({ success: false, error: error.response?.data?.detail || error.message });
   }
-});
-
-// Direct API fetch with provided token
+});
 router.get("/fetch-videos", async (req, res) => {
   try {
     const { playlistId, token, raw } = req.query;
@@ -1113,9 +1058,7 @@ router.get("/fetch-videos", async (req, res) => {
       return res.json({ success: false, error: "Playlist ID required" });
     }
 
-    let authToken = token || streamwideToken;
-    
-    // Try to refresh if no token
+    let authToken = token || streamwideToken;
     if (!authToken && streamwideRefreshToken) {
       try {
         await authenticateStreamWide();
@@ -1138,9 +1081,7 @@ router.get("/fetch-videos", async (req, res) => {
       timeout: 15000,
     });
 
-    const data = response.data;
-    
-    // Return raw data if requested
+    const data = response.data;
     if (raw === 'true') {
       return res.json({ success: true, data });
     }
@@ -1156,8 +1097,7 @@ router.get("/fetch-videos", async (req, res) => {
         let fullUrl;
         
         const domainValue = domains[domainKey];
-        if (domainValue) {
-          // Domain can be string or object with in_domain/out_domain
+        if (domainValue) {
           if (typeof domainValue === 'string') {
             fullUrl = domainValue + video.url;
           } else if (domainValue.out_domain) {
@@ -1169,13 +1109,9 @@ router.get("/fetch-videos", async (req, res) => {
           }
         } else {
           fullUrl = `https://ant.out.p${domainKey}.streamwide.tv${video.url}`;
-        }
-        
-        // Extract filename from URL (file_name from API is often empty)
+        }
         const urlMatch = video.url.match(/\/([^\/]+)$/);
-        const fileName = urlMatch ? decodeURIComponent(urlMatch[1]) : (video.file_name || "");
-        
-        // Parse filename for metadata
+        const fileName = urlMatch ? decodeURIComponent(urlMatch[1]) : (video.file_name || "");
         const parsed = parseFileName(fileName);
         
         downloads.push({
@@ -1204,9 +1140,7 @@ function extractQuality(text) {
   if (!text) return "";
   const match = text.match(/(\d{3,4})p/i);
   return match ? match[1] : "";
-}
-
-// Initialize on startup
+}
 setTimeout(async () => {
   try {
     const savedSession = loadSession();

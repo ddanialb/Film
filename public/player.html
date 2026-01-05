@@ -488,6 +488,89 @@
         border: 1px solid rgba(99,102,241,0.2);
         border-radius: 10px;
       }
+      .sub-settings-bar {
+        background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15));
+        border: 1px solid rgba(99,102,241,0.3);
+        border-radius: 12px;
+        padding: 12px 15px;
+        margin-bottom: 15px;
+      }
+      .sub-settings-bar .sub-settings-title {
+        font-size: 13px;
+        font-weight: bold;
+        color: #a5b4fc;
+        margin-bottom: 10px;
+      }
+      .sub-settings-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+      .sub-settings-grid .sub-setting {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+        font-size: 12px;
+      }
+      .sub-settings-grid .sub-setting label {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .sub-settings-grid select {
+        padding: 4px 8px;
+        background: rgba(0,0,0,0.4);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        color: var(--text);
+        font-size: 11px;
+      }
+      .sub-settings-grid input[type="range"] {
+        width: 60px;
+        accent-color: var(--primary);
+      }
+      .sub-settings-grid input[type="color"] {
+        width: 28px;
+        height: 24px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .sub-settings-grid #subSizeVal {
+        color: #a5b4fc;
+        font-size: 11px;
+        min-width: 35px;
+      }
+      .sub-settings-grid #delayVal {
+        color: #feca57;
+        font-size: 11px;
+        min-width: 30px;
+        text-align: center;
+      }
+      .delay-btn {
+        width: 24px;
+        height: 24px;
+        border: 1px solid var(--border);
+        background: rgba(0,0,0,0.3);
+        color: var(--text);
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .delay-btn:hover { background: rgba(99,102,241,0.3); }
+      .sub-remove-btn {
+        padding: 6px 12px;
+        background: rgba(239,68,68,0.2);
+        border: 1px solid rgba(239,68,68,0.3);
+        color: #f87171;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 11px;
+      }
+      .sub-remove-btn:hover { background: rgba(239,68,68,0.4); }
       .sub-setting {
         display: flex;
         align-items: center;
@@ -592,7 +675,46 @@
       </div>
       <div class="status" id="status"></div>
 
-      <!-- Subtitle Section -->
+      <div class="sub-settings-bar" id="subSettingsBar" style="display:none;">
+        <div class="sub-settings-title">⚙️ تنظیمات زیرنویس</div>
+        <div class="sub-settings-grid">
+          <div class="sub-setting">
+            <label>✏️ فونت:</label>
+            <select id="subFont" onchange="updateSubStyle()">
+              <option value="ShabnamLightFD, Tahoma">شبنم</option>
+              <option value="Tahoma, Arial">تاهوما</option>
+              <option value="Arial, sans-serif">Arial</option>
+            </select>
+          </div>
+          <div class="sub-setting">
+            <label>📏 سایز:</label>
+            <input type="range" id="subSize" min="16" max="48" value="24" oninput="updateSubStyle()">
+            <span id="subSizeVal">24px</span>
+          </div>
+          <div class="sub-setting">
+            <label>🎨 رنگ:</label>
+            <input type="color" id="subColor" value="#ffffff" oninput="updateSubStyle()">
+          </div>
+          <div class="sub-setting">
+            <label>🖼️ بک:</label>
+            <select id="subBg" onchange="updateSubStyle()">
+              <option value="rgba(0,0,0,0.8)">تیره</option>
+              <option value="rgba(0,0,0,0.5)">نیمه</option>
+              <option value="transparent">شفاف</option>
+            </select>
+          </div>
+          <div class="sub-setting">
+            <label>⏱️ تاخیر:</label>
+            <button class="delay-btn" onclick="adjustDelay(-0.5)">-</button>
+            <span id="delayVal">0s</span>
+            <button class="delay-btn" onclick="adjustDelay(0.5)">+</button>
+          </div>
+          <div class="sub-setting">
+            <button class="sub-remove-btn" onclick="removeSubtitle()">❌ حذف</button>
+          </div>
+        </div>
+      </div>
+
       <div class="subtitle-section" id="subtitleSection">
         <div class="subtitle-header" onclick="toggleSubtitlePanel()">
           <span class="icon">💬</span>
@@ -604,42 +726,14 @@
             <input type="text" id="imdbInput" placeholder="IMDB ID (خودکار پر میشه)" style="display:none;" />
             <button class="btn" id="searchSubBtn" style="width:100%;">🔍 جستجوی زیرنویس</button>
           </div>
+          <div class="sub-search-row" style="margin-top:10px; direction:ltr;">
+            <input type="text" id="srtUrlInput" placeholder="Paste SRT URL here..." style="flex:1; text-align:left;" />
+            <button class="btn" id="loadSrtBtn" style="width:auto; padding:12px 15px;">📥 Load</button>
+          </div>
           <div id="subStatus" class="sub-status"></div>
           <div id="langContainer"></div>
           <div id="subListContainer"></div>
           <div id="filePickerContainer"></div>
-          
-          <div class="sub-controls" id="subControls" style="display:none;">
-            <button class="sub-control-btn" onclick="removeSubtitle()">❌ حذف زیرنویس</button>
-            <button class="sub-control-btn" id="settingsBtn" onclick="toggleSettings()">⚙️ تنظیمات</button>
-          </div>
-          
-          <div class="sub-settings" id="subSettings" style="display:none;">
-            <div class="sub-setting">
-              <label>📏 اندازه:</label>
-              <input type="range" id="subSize" min="14" max="40" value="22" oninput="updateSubStyle()">
-              <span id="subSizeVal" style="min-width:40px;color:#a5b4fc;">22px</span>
-            </div>
-            <div class="sub-setting">
-              <label>🎨 رنگ:</label>
-              <input type="color" id="subColor" value="#ffffff" oninput="updateSubStyle()">
-            </div>
-            <div class="sub-setting">
-              <label>🖼️ پس‌زمینه:</label>
-              <select id="subBg" onchange="updateSubStyle()">
-                <option value="rgba(0,0,0,0.85)">تیره</option>
-                <option value="rgba(0,0,0,0.5)">نیمه شفاف</option>
-                <option value="rgba(0,0,0,0.3)">شفاف‌تر</option>
-                <option value="transparent">بدون پس‌زمینه</option>
-              </select>
-            </div>
-            <div class="sub-setting">
-              <label>⏱️ تاخیر:</label>
-              <button class="sub-control-btn" onclick="adjustDelay(-0.5)">- 0.5</button>
-              <span id="delayVal" style="min-width:45px;text-align:center;color:#feca57;">0s</span>
-              <button class="sub-control-btn" onclick="adjustDelay(0.5)">+ 0.5</button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -698,9 +792,7 @@
       }
 
       btn.onclick = () => play(urlInput.value.trim());
-      urlInput.onkeypress = e => { if (e.key === "Enter") btn.click(); };
-
-      // Grouping functions
+      urlInput.onkeypress = e => { if (e.key === "Enter") btn.click(); };
       function groupBySubType(downloads) {
         const groups = {
           dubbed: { label: 'Dubbed (دوبله)', icon: '🎙️', items: [] },
@@ -757,9 +849,7 @@
         const isSeries = telegramData.type === "series" || downloads.some(d => d.episode);
         const subTypeGroups = groupBySubType(downloads);
 
-        let html = '<div class="selection-area">';
-
-        // Step 1: Select Type
+        let html = '<div class="selection-area">';
         if (!selectedSubType) {
           html += `
             <div class="step-header">
@@ -784,8 +874,7 @@
             `;
           }
           html += '</div>';
-        }
-        // Step 2: Select Quality
+        }
         else if (!selectedQuality) {
           const group = subTypeGroups[selectedSubType];
           const qualityGroups = groupByQuality(group.items);
@@ -814,8 +903,7 @@
             `;
           }
           html += '</div>';
-        }
-        // Step 3: Select Episode
+        }
         else {
           const group = subTypeGroups[selectedSubType];
           const qualityGroups = groupByQuality(group.items);
@@ -883,9 +971,7 @@
           document.querySelector(`.ep-card[data-idx="${idx}"]`)?.classList.add('active');
           play(dl.url);
         }
-      };
-
-      // FarsiLand player
+      };
       async function playFromFileId(dl) {
         if (!dl || !dl.fileId) return;
         try {
@@ -927,24 +1013,18 @@
           document.querySelector('.ep-card[data-idx="0"]')?.classList.add('active');
           playFromFileId(sorted[0]);
         }
-      }
-
-      // Init
+      }
       const params = new URLSearchParams(window.location.search);
       const autoUrl = params.get("url");
       const source = params.get("source");
-      const imdbId = params.get("imdb");
-
-      // Subtitle variables
+      const imdbId = params.get("imdb");
       let currentSubtitleTrack = null;
       let subtitleDelay = 0;
       let subtitleLanguages = [];
       let currentSubtitles = [];
       let currentCacheKey = null;
       let parsedCues = [];
-      let useCustomOverlay = true;
-
-      // Subtitle functions
+      let useCustomOverlay = true;
       function toggleSubtitlePanel() {
         const content = $("subtitleContent");
         const toggle = $("subToggle");
@@ -958,45 +1038,67 @@
         el.className = "sub-status " + type;
       }
 
-      async function searchSubtitles() {
+      async function searchSubtitles(retryCount = 0) {
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 1500; // 1.5 seconds
+        
         let imdb = $("imdbInput").value.trim();
         let season = null;
-        
-        // Try to get from localStorage if not set
+        let title = null;
+        let type = "movie"; // default to movie
         if (!imdb) {
           try {
             const td = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
             const fd = JSON.parse(localStorage.getItem("farsiland-current-stream") || "{}");
             imdb = td.imdbId || fd.imdbId || "";
             season = td.season || fd.season || null;
+            title = td.title || fd.title || null;
+            type = td.type || fd.type || "movie";
             if (imdb) $("imdbInput").value = imdb;
-            console.log("📦 From localStorage - imdb:", imdb, "season:", season);
+            console.log("📦 From localStorage - imdb:", imdb, "season:", season, "title:", title, "type:", type);
           } catch (e) { console.error(e); }
-        } else {
-          // Still get season from localStorage
+        } else {
           try {
             const td = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
             const fd = JSON.parse(localStorage.getItem("farsiland-current-stream") || "{}");
             season = td.season || fd.season || null;
-            console.log("📦 Season from localStorage:", season, "td:", td.season, "fd:", fd.season);
+            title = td.title || fd.title || null;
+            type = td.type || fd.type || "movie";
+            console.log("📦 Season from localStorage:", season, "title:", title, "type:", type);
           } catch (e) { console.error(e); }
         }
         
-        if (!imdb) return setSubStatus("❌ IMDB ID پیدا نشد - ابتدا فیلم را انتخاب کنید", "error");
+        if (!imdb) return setSubStatus("❌ IMDB ID پیدا نشد - ابتدا فیلم را انتخاب کنید", "error");
+        const isMovie = type === "movie";
+        if (isMovie) {
+          season = null;
+          console.log("🎬 Movie detected, ignoring season");
+        }
         
-        setSubStatus(`در حال جستجو... (فصل ${season || 'نامشخص'})`, "loading");
-        $("langContainer").innerHTML = "";
-        $("subListContainer").innerHTML = "";
-        $("filePickerContainer").innerHTML = "";
+        const retryText = retryCount > 0 ? ` (تلاش ${retryCount + 1}/${MAX_RETRIES})` : '';
+        setSubStatus(`در حال جستجو... ${isMovie ? '(فیلم)' : '(فصل ' + (season || '?') + ')'}${retryText}`, "loading");
+        
+        if (retryCount === 0) {
+          $("langContainer").innerHTML = "";
+          $("subListContainer").innerHTML = "";
+          $("filePickerContainer").innerHTML = "";
+        }
         
         try {
           let url = `/subtitle/search?imdbId=${encodeURIComponent(imdb)}`;
           if (season) url += `&season=${encodeURIComponent(season)}`;
-          console.log("🔍 Searching:", url);
+          if (title) url += `&title=${encodeURIComponent(title)}`;
+          console.log("🔍 Searching:", url, retryCount > 0 ? `(retry ${retryCount})` : '');
           const res = await fetch(url);
           const data = await res.json();
           
-          if (!data.success || !data.languages || data.languages.length === 0) {
+          if (!data.success || !data.languages || data.languages.length === 0) {
+            if (retryCount < MAX_RETRIES - 1) {
+              console.log(`⏳ No results, retrying in ${RETRY_DELAY}ms... (${retryCount + 1}/${MAX_RETRIES})`);
+              setSubStatus(`زیرنویس پیدا نشد، تلاش مجدد... (${retryCount + 2}/${MAX_RETRIES})`, "loading");
+              await new Promise(r => setTimeout(r, RETRY_DELAY));
+              return searchSubtitles(retryCount + 1);
+            }
             return setSubStatus("زیرنویسی پیدا نشد", "error");
           }
           
@@ -1004,13 +1106,18 @@
           const seasonInfo = data.selectedSeason ? ` (فصل ${data.selectedSeason})` : '';
           setSubStatus(`${data.languages.length} زبان پیدا شد${seasonInfo}`, "success");
           renderLanguages();
-        } catch (e) {
+        } catch (e) {
+          if (retryCount < MAX_RETRIES - 1) {
+            console.log(`⏳ Error, retrying in ${RETRY_DELAY}ms... (${retryCount + 1}/${MAX_RETRIES}):`, e.message);
+            setSubStatus(`خطا، تلاش مجدد... (${retryCount + 2}/${MAX_RETRIES})`, "loading");
+            await new Promise(r => setTimeout(r, RETRY_DELAY));
+            return searchSubtitles(retryCount + 1);
+          }
           setSubStatus("خطا در جستجو: " + e.message, "error");
         }
       }
 
-      function renderLanguages() {
-        // Separate Persian, English, and others
+      function renderLanguages() {
         const persian = subtitleLanguages.find(l => l.code === "farsi_persian");
         const english = subtitleLanguages.find(l => l.code === "english");
         const others = subtitleLanguages.filter(l => l.code !== "farsi_persian" && l.code !== "english");
@@ -1029,9 +1136,7 @@
           html += `<button class="lang-btn" onclick="toggleOtherLangs()">🌍 سایر زبان‌ها (${others.length}) ▼</button>`;
         }
         
-        html += '</div>';
-        
-        // Other languages dropdown
+        html += '</div>';
         if (others.length > 0) {
           html += '<div id="otherLangsPanel" class="lang-grid" style="display:none; margin-top:8px;">';
           others.forEach(lang => {
@@ -1041,9 +1146,7 @@
           html += '</div>';
         }
         
-        $("langContainer").innerHTML = html;
-        
-        // Auto-select Persian if available
+        $("langContainer").innerHTML = html;
         if (persian) {
           selectLanguage(subtitleLanguages.indexOf(persian));
         }
@@ -1058,9 +1161,7 @@
 
       async function selectLanguage(idx) {
         const lang = subtitleLanguages[idx];
-        if (!lang) return;
-        
-        // Update active state
+        if (!lang) return;
         document.querySelectorAll(".lang-btn").forEach((btn, i) => {
           btn.classList.toggle("active", i === idx);
         });
@@ -1113,8 +1214,7 @@
         
         setSubStatus("در حال دریافت صفحه دانلود...", "loading");
         
-        try {
-          // Get download page
+        try {
           const pageRes = await fetch(`/subtitle/download-page?url=${encodeURIComponent(sub.downloadUrl)}`);
           const pageData = await pageRes.json();
           
@@ -1122,9 +1222,7 @@
             return setSubStatus("لینک دانلود پیدا نشد", "error");
           }
           
-          setSubStatus("در حال دانلود و استخراج...", "loading");
-          
-          // Extract ZIP
+          setSubStatus("در حال دانلود و استخراج...", "loading");
           const extractRes = await fetch(`/subtitle/extract?url=${encodeURIComponent(pageData.downloadLink)}`);
           const extractData = await extractRes.json();
           
@@ -1155,35 +1253,25 @@
       async function loadSubtitleFile(index, btn) {
         if (!currentCacheKey) return setSubStatus("خطا: کش منقضی شده", "error");
         
-        setSubStatus("در حال بارگذاری زیرنویس...", "loading");
-        
-        // Update active state
+        setSubStatus("در حال بارگذاری زیرنویس...", "loading");
         document.querySelectorAll(".file-btn").forEach(b => b.classList.remove("active"));
         if (btn) btn.classList.add("active");
         
         try {
-          const url = `/subtitle/file?cacheKey=${encodeURIComponent(currentCacheKey)}&index=${index}`;
-          
-          // Remove existing subtitle
-          removeSubtitle();
-          
-          // Fetch and parse VTT
+          const url = `/subtitle/file?cacheKey=${encodeURIComponent(currentCacheKey)}&index=${index}`;
+          removeSubtitle();
           const res = await fetch(url);
           const vttText = await res.text();
           parsedCues = parseVTT(vttText);
           
           if (parsedCues.length === 0) {
             return setSubStatus("خطا: زیرنویس خالی است", "error");
-          }
-          
-          // Start custom subtitle rendering
+          }
           video.addEventListener("timeupdate", renderSubtitleOverlay);
           video.addEventListener("seeking", renderSubtitleOverlay);
           
           setSubStatus(`✓ زیرنویس فعال شد (${parsedCues.length} خط)`, "success");
-          $("subControls").style.display = "flex";
-          
-          // Apply saved styles
+          $("subSettingsBar").style.display = "block"; // Show settings bar
           updateSubStyle();
         } catch (e) {
           setSubStatus("خطا در بارگذاری: " + e.message, "error");
@@ -1193,9 +1281,7 @@
       function parseVTT(vtt) {
         const cues = [];
         const lines = vtt.split("\n");
-        let i = 0;
-        
-        // Skip WEBVTT header
+        let i = 0;
         while (i < lines.length && !lines[i].includes("-->")) i++;
         
         while (i < lines.length) {
@@ -1203,9 +1289,7 @@
           if (line.includes("-->")) {
             const [startStr, endStr] = line.split("-->").map(s => s.trim());
             const start = parseTime(startStr);
-            const end = parseTime(endStr);
-            
-            // Collect text lines
+            const end = parseTime(endStr);
             const textLines = [];
             i++;
             while (i < lines.length && lines[i].trim() !== "" && !lines[i].includes("-->")) {
@@ -1223,8 +1307,7 @@
         return cues;
       }
       
-      function parseTime(str) {
-        // Handle both HH:MM:SS.mmm and MM:SS.mmm formats
+      function parseTime(str) {
         const parts = str.split(":");
         if (parts.length === 3) {
           const [h, m, s] = parts;
@@ -1239,13 +1322,10 @@
       function renderSubtitleOverlay() {
         const time = video.currentTime + subtitleDelay;
         const overlay = $("subtitleText");
-        if (!overlay) return;
-        
-        // Find current cue
+        if (!overlay) return;
         const cue = parsedCues.find(c => time >= c.start && time <= c.end);
         
-        if (cue) {
-          // Strip HTML tags and decode entities
+        if (cue) {
           let text = cue.text.replace(/<[^>]+>/g, "");
           overlay.innerHTML = text;
         } else {
@@ -1253,19 +1333,12 @@
         }
       }
 
-      function removeSubtitle() {
-        // Remove event listeners
+      function removeSubtitle() {
         video.removeEventListener("timeupdate", renderSubtitleOverlay);
-        video.removeEventListener("seeking", renderSubtitleOverlay);
-        
-        // Clear parsed cues
-        parsedCues = [];
-        
-        // Clear overlay
+        video.removeEventListener("seeking", renderSubtitleOverlay);
+        parsedCues = [];
         const overlay = $("subtitleText");
-        if (overlay) overlay.innerHTML = "";
-        
-        // Remove old track elements if any
+        if (overlay) overlay.innerHTML = "";
         if (currentSubtitleTrack) {
           currentSubtitleTrack.remove();
           currentSubtitleTrack = null;
@@ -1273,8 +1346,8 @@
         const tracks = video.querySelectorAll("track");
         tracks.forEach(t => t.remove());
         
-        $("subControls").style.display = "none";
-        $("subSettings").style.display = "none";
+        $("subSettingsBar").style.display = "none";
+        setSubStatus("زیرنویس حذف شد", "success");
       }
 
       function toggleSettings() {
@@ -1286,38 +1359,87 @@
         const size = $("subSize").value;
         const color = $("subColor").value;
         const bg = $("subBg").value;
+        const font = $("subFont")?.value || '"ShabnamLightFD", Tahoma';
+        const position = $("subPosition")?.value || "80px";
         
-        $("subSizeVal").textContent = size + "px";
-        
-        // Apply styles to custom overlay
+        $("subSizeVal").textContent = size + "px";
         const overlay = $("subtitleText");
+        const overlayContainer = $("subtitleOverlay");
         if (overlay) {
           overlay.style.fontSize = size + "px";
           overlay.style.color = color;
           overlay.style.backgroundColor = bg;
-          overlay.style.fontFamily = '"ShabnamLightFD", system-ui, sans-serif';
-          overlay.style.lineHeight = "1.4";
+          overlay.style.fontFamily = font;
+          overlay.style.lineHeight = "1.5";
+          overlay.style.padding = "10px 20px";
+          overlay.style.borderRadius = "8px";
         }
+        if (overlayContainer) {
+          overlayContainer.style.bottom = position;
+        }
+        try {
+          localStorage.setItem("sub-settings", JSON.stringify({ size, color, bg, font, position }));
+        } catch(e) {}
+      }
+      function loadSubSettings() {
+        try {
+          const saved = JSON.parse(localStorage.getItem("sub-settings") || "{}");
+          if (saved.size) $("subSize").value = saved.size;
+          if (saved.color) $("subColor").value = saved.color;
+          if (saved.bg) $("subBg").value = saved.bg;
+          if (saved.font) $("subFont").value = saved.font;
+          if (saved.position) $("subPosition").value = saved.position;
+          updateSubStyle();
+        } catch(e) {}
       }
+      loadSubSettings();
       
       function adjustDelay(delta) {
         subtitleDelay += delta;
         const delayEl = $("delayVal");
         if (delayEl) delayEl.textContent = subtitleDelay.toFixed(1) + "s";
         renderSubtitleOverlay();
-      }
-
-      // Event listeners
+      }
       $("searchSubBtn").onclick = searchSubtitles;
       $("imdbInput").onkeypress = e => { if (e.key === "Enter") searchSubtitles(); };
-
-      // Auto-fill IMDB if provided or from localStorage
+      $("loadSrtBtn").onclick = loadSrtFromUrl;
+      $("srtUrlInput").onkeypress = e => { if (e.key === "Enter") loadSrtFromUrl(); };
+      async function loadSrtFromUrl() {
+        const url = $("srtUrlInput").value.trim();
+        if (!url) return setSubStatus("Please enter an SRT URL", "error");
+        
+        setSubStatus("Loading subtitle from URL...", "loading");
+        
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const srtText = await res.text();
+          
+          if (!srtText || srtText.length < 10) {
+            return setSubStatus("Invalid or empty SRT file", "error");
+          }
+          parsedCues = parseSRT(srtText);
+          if (parsedCues.length === 0) {
+            return setSubStatus("Could not parse SRT file", "error");
+          }
+          
+          useCustomOverlay = true;
+          subtitleDelay = 0;
+          showSubSettingsBar();
+          setSubStatus(`✅ Loaded ${parsedCues.length} subtitle cues`, "success");
+          $("langContainer").innerHTML = "";
+          $("subListContainer").innerHTML = "";
+          $("filePickerContainer").innerHTML = "";
+          
+        } catch (e) {
+          setSubStatus("Error loading URL: " + e.message, "error");
+        }
+      }
       if (imdbId) {
         $("imdbInput").value = imdbId;
         toggleSubtitlePanel();
         setTimeout(searchSubtitles, 500);
-      } else {
-        // Try to get IMDB from localStorage
+      } else {
         try {
           const telegramData = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
           const farsilandData = JSON.parse(localStorage.getItem("farsiland-current-stream") || "{}");
@@ -1338,8 +1460,12 @@
         try {
           telegramData = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
           if (telegramData.title) urlInput.placeholder = `پخش: ${telegramData.title}`;
-          backToMovie.style.display = "inline-block";
-          backToMovie.href = "/telegram.html";
+          backToMovie.style.display = "inline-block";
+          if (telegramData.imdbId) {
+            backToMovie.href = `/telegram.html?restore=${telegramData.imdbId}`;
+          } else {
+            backToMovie.href = "/telegram.html";
+          }
           renderSelection();
         } catch (e) {
           console.error(e);

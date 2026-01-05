@@ -1,10 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * Check for sensitive files before git commit
- * Run: node check-sensitive.js
- */
-
 const fs = require('fs');
 const path = require('path');
 
@@ -28,24 +23,18 @@ const SENSITIVE_PATTERNS = [
 
 console.log('🔍 Checking for sensitive files...\n');
 
-let foundIssues = false;
-
-// Check for sensitive files
+let foundIssues = false;
 SENSITIVE_FILES.forEach(file => {
   if (fs.existsSync(file)) {
     console.log(`⚠️  Found sensitive file: ${file}`);
     foundIssues = true;
   }
-});
-
-// Check .gitignore exists
+});
 if (!fs.existsSync('.gitignore')) {
   console.log('❌ .gitignore not found!');
   foundIssues = true;
 } else {
-  const gitignore = fs.readFileSync('.gitignore', 'utf8');
-  
-  // Check if sensitive files are in .gitignore
+  const gitignore = fs.readFileSync('.gitignore', 'utf8');
   const missingInGitignore = [];
   SENSITIVE_FILES.forEach(file => {
     if (!gitignore.includes(file) && !gitignore.includes(path.dirname(file) + '/')) {
@@ -58,9 +47,7 @@ if (!fs.existsSync('.gitignore')) {
     missingInGitignore.forEach(f => console.log(`   - ${f}`));
     foundIssues = true;
   }
-}
-
-// Check for sensitive data in tracked files
+}
 const checkFile = (filePath) => {
   if (!fs.existsSync(filePath)) return;
   
@@ -72,9 +59,7 @@ const checkFile = (filePath) => {
       foundIssues = true;
     }
   });
-};
-
-// Check common files
+};
 ['README.md', 'DEPLOY.md', 'server.js'].forEach(checkFile);
 
 console.log('');

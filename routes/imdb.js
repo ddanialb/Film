@@ -2,9 +2,7 @@ const express = require("express");
 const axios = require("axios");
 const cheerio = require("cheerio");
 
-const router = express.Router();
-
-// IMDB Search - Using IMDB Suggestion API
+const router = express.Router();
 router.get("/search", async (req, res) => {
   try {
     const query = req.query.q;
@@ -14,7 +12,6 @@ router.get("/search", async (req, res) => {
 
     console.log("🎬 IMDB Search:", query);
 
-    // First letter of query must be in URL path
     const firstLetter = query.charAt(0).toLowerCase();
     const response = await axios.get(`https://v3.sg.media-imdb.com/suggestion/${firstLetter}/${encodeURIComponent(query)}.json`, {
       headers: {
@@ -46,9 +43,7 @@ router.get("/search", async (req, res) => {
     console.error("❌ IMDB Search Error:", error.message);
     res.json({ success: false, results: [], error: error.message });
   }
-});
-
-// IMDB Title Details
+});
 router.get("/title/:id", async (req, res) => {
   try {
     const id = req.params.id;

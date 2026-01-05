@@ -1,93 +1,106 @@
 const express = require("express");
 const router = express.Router();
+const axios = require("axios");
+const { SocksClient } = require("socks");
 const https = require("https");
-const unzipper = require("unzipper");
+const tls = require("tls");
+const unzipper = require("unzipper");
+const PROXY_HOST = process.env.SOCKS_PROXY_HOST || "127.0.0.1";
+const PROXY_PORT = parseInt(process.env.SOCKS_PROXY_PORT || "10808");
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-// Helper to fetch HTML using https
-function fetchHtml(url) {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
-    const options = {
-      hostname: urlObj.hostname,
-      path: urlObj.pathname + urlObj.search,
-      method: "GET",
+const socksOptions = {
+  host: PROXY_HOST,
+  port: PROXY_PORT,
+  type: 5,
+};
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+});
+httpsAgent.createConnection = function(options, callback) {
+  SocksClient.createConnection({
+    proxy: socksOptions,
+    command: "connect",
+    destination: {
+      host: options.host,
+      port: options.port || 443,
+    },
+  }).then(({ socket }) => {
+    const tlsSocket = tls.connect({
+      socket: socket,
+      servername: options.host,
+      ...options,
+    });
+    callback(null, tlsSocket);
+  }).catch(callback);
+};
+async function fetchHtml(url, throwOnError = false) {
+  try {
+    const res = await axios.get(url, {
+      httpsAgent: httpsAgent,
+      timeout: 15000,
       headers: {
         "User-Agent": USER_AGENT,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "identity",
       },
-    };
-
-    const req = https.request(options, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303) {
-        const location = res.headers.location;
-        const redirectUrl = location.startsWith("http") ? location : `https://${urlObj.hostname}${location}`;
-        return fetchHtml(redirectUrl).then(resolve).catch(reject);
-      }
-      
-      let data = "";
-      res.setEncoding("utf8");
-      res.on("data", (chunk) => (data += chunk));
-      res.on("end", () => resolve(data));
-      res.on("error", reject);
+      validateStatus: (status) => status < 500,
     });
-
-    req.on("error", reject);
-    req.setTimeout(15000, () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-    req.end();
+    if (res.status >= 400) {
+      console.log(`⚠️ HTTP ${res.status} for ${url}`);
+      return null;
+    }
+    return res.data;
+  } catch (e) {
+    console.log(`⚠️ Fetch error for ${url}: ${e.message}`);
+    if (throwOnError) throw e;
+    return null;
+  }
+}
+async function fetchBinary(url) {
+  const res = await axios.get(url, {
+    httpsAgent: httpsAgent,
+    timeout: 30000,
+    responseType: "arraybuffer",
+    headers: { "User-Agent": USER_AGENT },
   });
-}
-
-// Helper to fetch binary data
-function fetchBinary(url) {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
-    const options = {
-      hostname: urlObj.hostname,
-      path: urlObj.pathname + urlObj.search,
-      method: "GET",
-      headers: { "User-Agent": USER_AGENT },
-    };
-
-    const req = https.request(options, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303) {
-        const location = res.headers.location;
-        const redirectUrl = location.startsWith("http") ? location : `https://${urlObj.hostname}${location}`;
-        return fetchBinary(redirectUrl).then(resolve).catch(reject);
-      }
-      
-      const chunks = [];
-      res.on("data", (chunk) => chunks.push(chunk));
-      res.on("end", () => resolve(Buffer.concat(chunks)));
-      res.on("error", reject);
-    });
-
-    req.on("error", reject);
-    req.setTimeout(30000, () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-    req.end();
-  });
-}
-
-// Search subtitles by IMDB ID
+  return Buffer.from(res.data);
+}
 router.get("/search", async (req, res) => {
   try {
-    const { imdbId, season } = req.query;
+    const { imdbId, season, title } = req.query;
     if (!imdbId) return res.status(400).json({ error: "imdbId required" });
 
-    const searchUrl = `https://subf2m.co/subtitles/searchbytitle?query=${imdbId}&l=`;
-    console.log(`🔍 Searching subtitles: ${searchUrl}`);
-    const html = await fetchHtml(searchUrl);
+    const seasonNum = season ? parseInt(season) : null;
+    const ordinals = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 
+      'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth',
+      'twenty-first', 'twenty-second', 'twenty-third', 'twenty-fourth', 'twenty-fifth', 'twenty-sixth', 'twenty-seventh', 'twenty-eighth', 'twenty-ninth', 'thirtieth'];
+    
+    const targetOrdinal = seasonNum && seasonNum <= 30 ? ordinals[seasonNum] : null;
+    let searchQuery = imdbId;
+    const isTvShow = seasonNum && seasonNum >= 1 && title && targetOrdinal;
+    
+    if (isTvShow) {
+      const cleanTitle = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      searchQuery = `${cleanTitle} ${targetOrdinal} season`;
+      console.log(`🔍 Searching TV show: "${searchQuery}"`);
+    } else {
+      console.log(`🔍 Searching movie by IMDB: ${imdbId}`);
+    }
 
-    // Find all subtitle links
+    const searchUrl = `https://subf2m.co/subtitles/searchbytitle?query=${encodeURIComponent(searchQuery)}&l=`;
+    console.log(`🌐 Search URL: ${searchUrl}`);
+    let html = await fetchHtml(searchUrl);
+    if (!html && isTvShow) {
+      console.log(`⚠️ Title search failed, trying IMDB ID...`);
+      const fallbackUrl = `https://subf2m.co/subtitles/searchbytitle?query=${imdbId}&l=`;
+      html = await fetchHtml(fallbackUrl);
+    }
+    
+    if (!html) {
+      return res.json({ success: false, error: "Search failed", languages: [] });
+    }
     const linkRegex = /href=["'](\/subtitles\/[a-z0-9-]+)["']/gi;
     const links = [];
     let m;
@@ -101,162 +114,138 @@ router.get("/search", async (req, res) => {
     
     if (links.length === 0) {
       return res.json({ success: false, error: "No results found", languages: [] });
-    }
-    
-    // Ordinals for season names
-    const ordinals = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 
-      'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth',
-      'twenty-first', 'twenty-second', 'twenty-third', 'twenty-fourth', 'twenty-fifth', 'twenty-sixth', 'twenty-seventh', 'twenty-eighth', 'twenty-ninth', 'thirtieth'];
-    
-    // Cardinals (some sites use "ten-season" instead of "tenth-season")
+    }
     const cardinals = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-      'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
-    
-    const seasonNum = season ? parseInt(season) : null;
-    const targetOrdinal = seasonNum && seasonNum <= 30 ? ordinals[seasonNum] : null;
-    
-    // Helper: Extract season number from a link
+      'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
     function getSeasonFromLink(link) {
-      const lower = link.toLowerCase();
-      
-      // Check ordinals (handle double dash like supernatural--first-season)
-      for (let i = 1; i <= 30; i++) {
-        // Match both -first-season and --first-season
-        const regex = new RegExp(`-{1,2}${ordinals[i]}-season`);
+      const lower = link.toLowerCase();
+      for (let i = 1; i <= 30; i++) {
+        const regex = new RegExp(`-{1,2}${ordinals[i]}-season($|[^a-z])`);
         if (regex.test(lower)) return i;
-      }
-      
-      // Check cardinals
+      }
       for (let i = 1; i <= 20; i++) {
-        if (lower.includes(`-${cardinals[i]}-season`)) return i;
-      }
-      
-      // Check numeric: -season-15
+        const regex = new RegExp(`-${cardinals[i]}-season($|[^a-z])`);
+        if (regex.test(lower)) return i;
+      }
       const numMatch = lower.match(/-season-(\d+)/);
       if (numMatch) return parseInt(numMatch[1]);
       
       return null;
-    }
-    
-    // Helper: Extract show base name from link (handle double dash)
+    }
     function getShowBaseName(link) {
       const lower = link.toLowerCase();
-      const prefix = '/subtitles/';
-      
-      // Try ordinals with possible double dash
-      for (let i = 1; i <= 30; i++) {
-        // Match -first-season or --first-season
+      const prefix = '/subtitles/';
+      for (let i = 1; i <= 30; i++) {
         const match = lower.match(new RegExp(`^/subtitles/(.+?)-{1,2}${ordinals[i]}-season`));
         if (match) {
           return match[1];
         }
-      }
-      
-      // Try cardinals
+      }
       for (let i = 1; i <= 20; i++) {
         const pattern = `-${cardinals[i]}-season`;
         const idx = lower.indexOf(pattern);
         if (idx !== -1) {
           return link.substring(prefix.length, idx);
         }
-      }
-      
-      // Try numeric
+      }
       const numIdx = lower.indexOf('-season-');
       if (numIdx !== -1) {
         return link.substring(prefix.length, numIdx);
       }
       
       return null;
-    }
-    
-    // Analyze all links
+    }
     const linkInfo = links.map(link => ({
       link,
       season: getSeasonFromLink(link),
       baseName: getShowBaseName(link)
     }));
     
-    console.log('Link analysis:', linkInfo.map(l => `S${l.season}: ${l.link}`).join(', '));
-    
-    // Get show base name from any link that has season info
+    console.log('Link analysis:', linkInfo.map(l => `S${l.season}: ${l.link}`).join(', '));
     const showBaseName = linkInfo.find(l => l.baseName)?.baseName || null;
-    console.log(`📺 Show base name: ${showBaseName || 'unknown'}`);
-    
-    // Build list of URLs to try (in priority order)
+    console.log(`📺 Show base name: ${showBaseName || 'unknown'}`);
     const urlsToTry = [];
     
     if (seasonNum && targetOrdinal) {
-      console.log(`🎯 Looking for season ${seasonNum} (${targetOrdinal})`);
-      
-      // 1. First check if exact season exists in search results
+      console.log(`🎯 Looking for season ${seasonNum} (${targetOrdinal})`);
       const exactMatch = linkInfo.find(l => l.season === seasonNum);
       if (exactMatch) {
         urlsToTry.push(exactMatch.link);
         console.log(`✅ Found in search results: ${exactMatch.link}`);
-      }
-      
-      // 2. Construct URL with show base name (try both double and single dash)
-      if (showBaseName) {
-        // Double dash version first (Supernatural uses this for early seasons)
+      }
+      if (showBaseName) {
+        const constructed1 = `/subtitles/${showBaseName}-${targetOrdinal}-season`;
+        if (!urlsToTry.includes(constructed1)) {
+          urlsToTry.push(constructed1);
+        }
         const constructed2 = `/subtitles/${showBaseName}--${targetOrdinal}-season`;
         if (!urlsToTry.includes(constructed2)) {
           urlsToTry.push(constructed2);
         }
-        
-        // Single dash version
-        const constructed1 = `/subtitles/${showBaseName}-${targetOrdinal}-season`;
-        if (!urlsToTry.includes(constructed1)) {
-          urlsToTry.push(constructed1);
+      }
+    } else {
+      for (const link of links) {
+        if (!urlsToTry.includes(link)) {
+          urlsToTry.push(link);
         }
       }
     }
     
-    // 3. Add all links from search as fallback
-    for (const link of links) {
-      if (!urlsToTry.includes(link)) {
-        urlsToTry.push(link);
-      }
-    }
-    
-    console.log(`📋 URLs to try: ${urlsToTry.length}`);
-    
-    // Try each URL until one works
+    console.log(`📋 URLs to try: ${urlsToTry.length}`);
     let pageHtml = null;
     let finalUrl = null;
-    let actualSeason = null;
-    
-    for (const link of urlsToTry) {
+    let actualSeason = null;
+    const priorityUrls = urlsToTry.slice(0, 3);
+    const fallbackUrls = urlsToTry.slice(3);
+    const tryUrl = async (link) => {
       const url = `https://subf2m.co${link}`;
-      console.log(`📄 Trying: ${link}`);
-      
-      try {
-        const html = await fetchHtml(url);
-        
-        // Check if page has actual content (languages)
-        if (html && html.length > 5000) {
-          const hasLanguages = /<span\s+class=["']count["']>\d+<\/span>/i.test(html);
-          if (hasLanguages) {
-            pageHtml = html;
-            finalUrl = url;
-            actualSeason = getSeasonFromLink(link);
-            console.log(`✅ Success: ${link} (Season ${actualSeason})`);
-            
-            // If we found the exact season we wanted, stop
-            if (!seasonNum || actualSeason === seasonNum) {
-              break;
-            }
-            
-            // If this is not the season we want, keep trying but save as fallback
-            console.log(`⚠️ Not exact match, continuing search...`);
+      const html = await fetchHtml(url); // Returns null on error
+      if (!html) {
+        console.log(`❌ No HTML returned for ${link}`);
+        return null;
+      }
+      console.log(`📄 Got ${html.length} bytes for ${link}`);
+      if (html.length > 5000) {
+        const hasLanguages = /<span\s+class=["']count["']>\d+<\/span>/i.test(html);
+        if (hasLanguages) {
+          return { link, url, html, season: getSeasonFromLink(link) };
+        } else {
+          console.log(`⚠️ No languages found in ${link}`);
+        }
+      }
+      return null;
+    };
+    if (priorityUrls.length > 0) {
+      console.log(`📄 Trying priority URLs: ${priorityUrls.join(', ')}`);
+      const results = await Promise.all(priorityUrls.map(tryUrl));
+      const success = results.find(r => r !== null);
+      if (success) {
+        if (!seasonNum || success.season === seasonNum) {
+          pageHtml = success.html;
+          finalUrl = success.url;
+          actualSeason = success.season;
+          console.log(`✅ Found exact match: ${success.link}`);
+        } else {
+          if (!pageHtml) {
+            pageHtml = success.html;
+            finalUrl = success.url;
+            actualSeason = success.season;
+            console.log(`⚠️ Found fallback: ${success.link} (Season ${success.season})`);
           }
         }
-      } catch (e) {
-        console.log(`  ❌ Error: ${e.message}`);
       }
-      
-      // Small delay between requests
-      await new Promise(r => setTimeout(r, 300));
+    }
+    if (!pageHtml && fallbackUrls.length > 0) {
+      const limitedFallbacks = fallbackUrls.slice(0, 6);
+      console.log(`📄 Trying ${limitedFallbacks.length} fallback URLs`);
+      const results = await Promise.all(limitedFallbacks.map(tryUrl));
+      const success = results.find(r => r !== null);
+      if (success) {
+        pageHtml = success.html;
+        finalUrl = success.url;
+        actualSeason = success.season;
+        console.log(`✅ Found from fallback: ${success.link}`);
+      }
     }
     
     if (!pageHtml) {
@@ -266,9 +255,7 @@ router.get("/search", async (req, res) => {
         languages: [],
         linksFound: links.length
       });
-    }
-
-    // Extract languages from page
+    }
     const langRegex = /<a\s+href=["']([^"']+)["'][^>]*>([^<]+)<span\s+class=["']count["']>(\d+)<\/span>/gi;
     const languages = [];
     while ((m = langRegex.exec(pageHtml)) !== null) {
@@ -298,18 +285,14 @@ router.get("/search", async (req, res) => {
     console.error("Subtitle search error:", error);
     res.status(500).json({ error: error.message });
   }
-});
-
-// Get subtitles list for a specific language
+});
 router.get("/list", async (req, res) => {
   try {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: "url required" });
 
     console.log(`📋 Fetching subtitle list: ${url}`);
-    const html = await fetchHtml(url);
-    
-    // Find all download links - support both single and double quotes
+    const html = await fetchHtml(url);
     const dlRegex = /class=["']download[^"']*["']\s+href=["']([^"']+)["']/gi;
     const downloads = [];
     let m;
@@ -317,9 +300,7 @@ router.get("/list", async (req, res) => {
       if (!downloads.includes(m[1])) {
         downloads.push(m[1]);
       }
-    }
-    
-    // Alternative pattern
+    }
     if (downloads.length === 0) {
       const altDlRegex = /href=["']([^"']+)["'][^>]*class=["']download/gi;
       while ((m = altDlRegex.exec(html)) !== null) {
@@ -344,17 +325,11 @@ router.get("/list", async (req, res) => {
       let endIndex = html.indexOf("</li>", dlIndex);
       if (endIndex === -1) continue;
       
-      const itemHtml = html.substring(startIndex, endIndex + 5);
-      
-      // Language - support both quotes
+      const itemHtml = html.substring(startIndex, endIndex + 5);
       const langMatch = itemHtml.match(/<span\s+class=["']language[^"']*["']>([^<]+)<\/span>/i);
-      const language = langMatch ? langMatch[1].trim() : "";
-      
-      // Rating - support both quotes
+      const language = langMatch ? langMatch[1].trim() : "";
       const ratingMatch = itemHtml.match(/<span\s+class=["']rate\s+([^"']+)["']/i);
-      const rating = ratingMatch ? ratingMatch[1].trim() : "not rated";
-      
-      // Releases
+      const rating = ratingMatch ? ratingMatch[1].trim() : "not rated";
       const releases = [];
       const scrollMatch = itemHtml.match(/<ul\s+class=["']scrolllist["']>([\s\S]*?)<\/ul>/i);
       if (scrollMatch) {
@@ -363,13 +338,9 @@ router.get("/list", async (req, res) => {
         while ((lm = liRegex.exec(scrollMatch[1])) !== null) {
           releases.push(lm[1].trim());
         }
-      }
-      
-      // Author - support both quotes
+      }
       const authorMatch = itemHtml.match(/<a\s+href=["']\/u\/\d+["']>([^<]+)<\/a>/i);
-      const author = authorMatch ? authorMatch[1].trim() : "";
-      
-      // Comment
+      const author = authorMatch ? authorMatch[1].trim() : "";
       const commentMatch = itemHtml.match(/<p>([^<]*)<\/p>/i);
       const comment = commentMatch ? commentMatch[1].trim() : "";
       
@@ -390,19 +361,14 @@ router.get("/list", async (req, res) => {
     console.error("Subtitle list error:", error);
     res.status(500).json({ error: error.message });
   }
-});
-
-
-// Get download page and extract actual download link
+});
 router.get("/download-page", async (req, res) => {
   try {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: "url required" });
 
     console.log(`📥 Fetching download page: ${url}`);
-    const html = await fetchHtml(url);
-    
-    // Try multiple patterns for download button - support both quotes
+    const html = await fetchHtml(url);
     const patterns = [
       /id=["']downloadButton["'][^>]*href=["']([^"']+)["']/i,
       /href=["']([^"']+)["'][^>]*id=["']downloadButton["']/i,
@@ -436,9 +402,7 @@ router.get("/download-page", async (req, res) => {
     console.error("Download page error:", error);
     res.status(500).json({ error: error.message });
   }
-});
-
-// Simple in-memory cache for ZIP files - very short TTL
+});
 const subtitleCache = new Map();
 const CACHE_TTL = 60 * 1000; // 1 minute only
 
@@ -450,9 +414,7 @@ function cleanCache() {
       console.log(`🗑️ Cleaned cache: ${key}`);
     }
   }
-}
-
-// Download and extract ZIP using unzipper
+}
 router.get("/extract", async (req, res) => {
   try {
     const { url } = req.query;
@@ -491,9 +453,7 @@ router.get("/extract", async (req, res) => {
     console.error("Extract error:", error);
     res.status(500).json({ error: error.message });
   }
-});
-
-// Get specific subtitle file content
+});
 router.get("/file", async (req, res) => {
   try {
     const { cacheKey, index } = req.query;
@@ -519,9 +479,7 @@ router.get("/file", async (req, res) => {
     
     if (ext === ".srt") {
       text = srtToVtt(text);
-    }
-
-    // Delete cache after serving file to free memory
+    }
     subtitleCache.delete(cacheKey);
     console.log(`🗑️ Deleted cache after serving: ${cacheKey}`);
 
@@ -531,9 +489,7 @@ router.get("/file", async (req, res) => {
     console.error("File error:", error);
     res.status(500).json({ error: error.message });
   }
-});
-
-// Convert SRT to VTT format
+});
 function srtToVtt(srt) {
   let vtt = "WEBVTT\n\n";
   srt = srt.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
