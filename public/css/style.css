@@ -273,6 +273,20 @@ h1 {
   color: #feca57;
 }
 
+.movie-card .subtitle {
+  font-size: 0.75rem;
+  color: #888;
+  display: block;
+  margin-top: 3px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
 .no-results {
   text-align: center;
   padding: 40px;

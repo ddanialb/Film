@@ -64,10 +64,24 @@ function showResults(items) {
     const isSeries = item.type && (item.type.toLowerCase().includes("series") || item.type.toLowerCase().includes("tv"));
     const typeIcon = isSeries ? "📺" : "🎬";
     const typeLabel = isSeries ? "Series" : "Movie";
-
+    
+    // Build subtitle with year and actors
+    let subtitle = "";
+    if (item.year) subtitle += item.year;
+    if (item.actors) {
+      if (subtitle) subtitle += " • ";
+      subtitle += item.actors;
+    }
+    
+    // Store data in data attributes to avoid quote issues
     html += `
       <div class="movie-card" style="animation-delay: ${index * 0.05}s; cursor: pointer;" 
-           onclick="selectMovie('${imdbId}', '${escapeHtml(item.title)}', '${escapeHtml(item.image || '')}', '${item.year || ''}', '${isSeries}')">
+           data-imdb="${escapeHtml(imdbId)}"
+           data-title="${escapeHtml(item.title)}"
+           data-image="${escapeHtml(item.image || '')}"
+           data-year="${item.year || ''}"
+           data-series="${isSeries}"
+           onclick="handleMovieClick(this)">
         <div class="img-container">
           ${hasImage ? `<img src="${item.image}" alt="${escapeHtml(item.title)}" loading="lazy" onload="this.classList.add('loaded')" onerror="this.style.display='none'">` : ""}
           <div class="img-placeholder">${typeIcon}</div>
@@ -75,12 +89,21 @@ function showResults(items) {
         </div>
         <div class="info">
           <h3>${escapeHtml(item.title)}</h3>
-          ${item.year ? `<span>${item.year}</span>` : ""}
+          ${subtitle ? `<span class="subtitle">${escapeHtml(subtitle)}</span>` : ""}
         </div>
       </div>
     `;
   });
   results.innerHTML = html;
+}
+
+function handleMovieClick(el) {
+  const imdbId = el.dataset.imdb;
+  const title = el.dataset.title;
+  const image = el.dataset.image;
+  const year = el.dataset.year;
+  const isSeries = el.dataset.series === 'true';
+  selectMovie(imdbId, title, image, year, isSeries);
 }
 
 function escapeHtml(text) {
@@ -92,7 +115,7 @@ function selectMovie(imdbId, title, image, year, isSeries) {
   currentImdbId = imdbId;
   currentTitle = title;
   currentImage = image;
-  currentType = isSeries === 'true' || isSeries === true ? "series" : "movie";
+  currentType = isSeries === true || isSeries === 'true' ? "series" : "movie";
   currentSeasons = [];
   currentSeasonNum = 1;
   currentDownloads = [];
