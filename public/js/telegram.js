@@ -15,7 +15,8 @@ let currentTitle = "";
 let currentImage = "";
 let currentSeasons = [];
 let currentSeasonNum = 1;
-let currentDownloads = [];
+let currentDownloads = [];
+
 let selectedSubType = null;
 let selectedQuality = null;
 
@@ -61,13 +62,15 @@ function showResults(items) {
     const imdbId = item.id || "";
     const isSeries = item.type && (item.type.toLowerCase().includes("series") || item.type.toLowerCase().includes("tv"));
     const typeIcon = isSeries ? "📺" : "🎬";
-    const typeLabel = isSeries ? "Series" : "Movie";
+    const typeLabel = isSeries ? "Series" : "Movie";
+
     let subtitle = "";
     if (item.year) subtitle += item.year;
     if (item.actors) {
       if (subtitle) subtitle += " • ";
       subtitle += item.actors;
-    }
+    }
+
     html += `
       <div class="movie-card" style="animation-delay: ${index * 0.05}s; cursor: pointer;" 
            data-imdb="${escapeHtml(imdbId)}"
@@ -150,11 +153,13 @@ async function getDownloadLinks() {
   linksContainer.innerHTML = '<div class="loading active"><div class="loading-spinner"></div><p>Searching StreamWide...</p></div>';
 
   try {
-    const params = new URLSearchParams({ imdbId: currentImdbId, title: currentTitle || '' });
+    const params = new URLSearchParams({ imdbId: currentImdbId, title: currentTitle || '' });
+
     const loadingTimeout = setTimeout(() => {
       const loadingEl = linksContainer.querySelector('.loading p');
       if (loadingEl) loadingEl.textContent = 'Waiting for Telegram bot response...';
-    }, 5000);
+    }, 5000);
+
     const loadingTimeout2 = setTimeout(() => {
       const loadingEl = linksContainer.querySelector('.loading p');
       if (loadingEl) loadingEl.textContent = 'Still waiting... (this may take up to 15 seconds)';
@@ -216,13 +221,14 @@ async function loadSeason(seasonId, seasonNum) {
   } catch (error) {
     linksContainer.innerHTML = '<div class="no-results">⚠️ Error</div>';
   }
-}
+}
+
 function groupBySubType(downloads) {
   const groups = {
-    dubbed: { label: '🎙️ Dubbed (دوبله)', icon: '🎙️', items: [] },
-    softsub: { label: '💬 SoftSub (زیرنویس جدا)', icon: '💬', items: [] },
-    hardsub: { label: '📝 HardSub (زیرنویس چسبیده)', icon: '📝', items: [] },
-    other: { label: '📦 Other (سایر)', icon: '📦', items: [] }
+    dubbed: { label: '🎙️ دوبله', icon: '🎙️', items: [] },
+    softsub: { label: '💬 زیرنویس جدا', icon: '💬', items: [] },
+    hardsub: { label: '📝 زیرنویس چسبیده', icon: '📝', items: [] },
+    other: { label: '📦 خام', icon: '📦', items: [] }
   };
   
   downloads.forEach(dl => {
@@ -233,13 +239,15 @@ function groupBySubType(downloads) {
   });
   
   return groups;
-}
+}
+
 function getQualityKey(dl) {
   let key = dl.quality ? `${dl.quality}p` : '0p';
   if (dl.codec) key += ` ${dl.codec}`;
   if (dl.source) key += ` ${dl.source}`;
   return key;
-}
+}
+
 function groupByQualityProfile(items) {
   const groups = {};
   
@@ -260,16 +268,19 @@ function groupByQualityProfile(items) {
     .forEach(k => sorted[k] = groups[k]);
   
   return sorted;
-}
+}
+
 function selectSubType(subType) {
   selectedSubType = subType;
   selectedQuality = null;
   renderUI();
-}
+}
+
 function selectQualityProfile(quality) {
   selectedQuality = quality;
   renderUI();
-}
+}
+
 function goBack(level) {
   if (level === 'subtype') {
     selectedSubType = null;
@@ -281,10 +292,12 @@ function goBack(level) {
 }
 
 function renderUI() {
-  let html = '';
+  let html = '';
+
   if (currentDownloads && currentDownloads.length > 0) {
     html += `<div class="play-section-top"><button onclick="openPlayer()" class="online-play-btn">▶️ Play Online</button></div>`;
-  }
+  }
+
   if (currentSeasons.length > 0) {
     html += '<div class="seasons-section">';
     html += '<h3>📺 Season</h3>';
@@ -305,7 +318,8 @@ function renderUI() {
   const subTypeGroups = groupBySubType(currentDownloads);
   const isSeries = currentType === "series" || currentDownloads.some(d => d.episode);
   
-  html += '<div class="downloads-section">';
+  html += '<div class="downloads-section">';
+
   if (!selectedSubType) {
     html += '<h3 class="step-title">1️⃣ Select Type</h3>';
     html += '<div class="type-selector">';
@@ -321,13 +335,14 @@ function renderUI() {
         <button class="type-btn" onclick="selectSubType('${subType}')">
           <span class="type-icon">${group.icon}</span>
           <span class="type-label">${group.label}</span>
-          <span class="type-info">${qualityCount} quality • ${isSeries ? episodeCount + ' eps' : group.items.length + ' files'}</span>
+          <span class="type-info">${isSeries ? episodeCount + ' قسمت' : group.items.length + ' فایل'} • ${qualityCount} کیفیت</span>
         </button>
       `;
     }
     
     html += '</div>';
-  }
+  }
+
   else if (!selectedQuality) {
     const group = subTypeGroups[selectedSubType];
     const qualityGroups = groupByQualityProfile(group.items);
@@ -345,14 +360,15 @@ function renderUI() {
       html += `
         <button class="quality-btn-card" onclick="selectQualityProfile('${escapeHtml(qualityKey)}')">
           <span class="quality-name">${qualityKey}</span>
-          <span class="quality-info">${isSeries ? episodeCount + ' episodes' : items.length + ' files'}</span>
-          ${avgSize ? `<span class="quality-size">~${avgSize}/ep</span>` : ''}
+          <span class="quality-info">${isSeries ? episodeCount + ' قسمت' : items.length + ' فایل'}</span>
+          ${avgSize ? `<span class="quality-size">~${avgSize}/قسمت</span>` : ''}
         </button>
       `;
     }
     
     html += '</div>';
-  }
+  }
+
   else {
     const group = subTypeGroups[selectedSubType];
     const qualityGroups = groupByQualityProfile(group.items);
@@ -447,15 +463,19 @@ copyBtn?.addEventListener("click", () => {
 });
 getLinksBtn?.addEventListener("click", getDownloadLinks);
 searchInput.focus();
-fetch("/telegram/status").then(r => r.json()).then(d => { if (d.connected) console.log("✅ Telegram ready"); }).catch(() => {});
+fetch("/telegram/status").then(r => r.json()).then(d => { if (d.connected) console.log("✅ Telegram ready"); }).catch(() => {});
+
 (function checkRestore() {
   const params = new URLSearchParams(window.location.search);
   const restoreImdb = params.get("restore");
-  if (restoreImdb) {
+  if (restoreImdb) {
+
     try {
       const saved = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
-      if (saved.imdbId === restoreImdb && saved.title) {
-        selectMovie(saved.imdbId, saved.title, saved.image || "", saved.year || "", saved.type === "series");
+      if (saved.imdbId === restoreImdb && saved.title) {
+
+        selectMovie(saved.imdbId, saved.title, saved.image || "", saved.year || "", saved.type === "series");
+
         window.history.replaceState({}, "", "/telegram.html");
       }
     } catch (e) {

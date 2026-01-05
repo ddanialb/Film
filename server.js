@@ -21,10 +21,12 @@ const searchRoutes = require("./routes/search");
 const imdbRoutes = require("./routes/imdb");
 const telegramRoutes = require("./routes/telegram");
 const subtitleRoutes = require("./routes/subtitle");
+const streamwideRoutes = require("./routes/streamwide");
 app.use("/api", searchRoutes);
 app.use("/imdb", imdbRoutes);
 app.use("/telegram", telegramRoutes);
 app.use("/subtitle", subtitleRoutes);
+app.use("/streamwide", streamwideRoutes);
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
