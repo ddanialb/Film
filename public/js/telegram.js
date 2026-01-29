@@ -21,39 +21,59 @@ let selectedSubType = null;
 let selectedQuality = null;
 let selectedQualityDetail = null;
 
-// Server management
 let cachedActiveServer = null;
+let cachedActiveServers = [];
 let lastServerFetch = 0;
-const SERVER_CACHE_TIME = 5 * 60 * 1000; // 5 minutes
+const SERVER_CACHE_TIME = 2 * 60 * 1000;
 
 async function getActiveServer() {
   const now = Date.now();
-  if (cachedActiveServer && (now - lastServerFetch < SERVER_CACHE_TIME)) {
+  if (cachedActiveServer && cachedActiveServers.length > 0 && (now - lastServerFetch < SERVER_CACHE_TIME)) {
     return cachedActiveServer;
   }
   
   try {
+    console.log('🔍 Fetching active servers...');
     const response = await fetch('/active-server');
     const data = await response.json();
-    cachedActiveServer = data.activeServer;
-    lastServerFetch = now;
+    
+    if (data.activeServer && data.activeServers && data.activeServers.length > 0) {
+      cachedActiveServer = data.activeServer;
+      cachedActiveServers = data.activeServers;
+      lastServerFetch = now;
+      console.log(`✅ Active server: ${data.activeServer}`);
+      console.log(`📊 Available servers: [${data.activeServers.join(', ')}] (${data.activeServers.length} total)`);
+    } else {
+      console.log('⚠️ No active servers available');
+      cachedActiveServer = null;
+      cachedActiveServers = [];
+    }
+    
     return cachedActiveServer;
   } catch (error) {
-    // Don't use p1 as fallback, return null if no server is working
-    return null;
+    console.error('❌ Failed to fetch active servers:', error);
+    return cachedActiveServer;
   }
 }
 
 function updateLinksWithActiveServer(downloads) {
-  if (!cachedActiveServer) {
-    // If no active server, remove external links entirely
-    return downloads.filter(dl => !dl.url || !dl.url.includes('external-server.tv'));
+  if (!cachedActiveServers || cachedActiveServers.length === 0) {
+    console.log('⚠️ No active servers available, keeping original links');
+    return downloads;
   }
   
-  return downloads.map(dl => {
-    if (dl.url && dl.url.includes('external-server.tv')) {
-      // Replace any existing external server with active one
-      dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.external-server\.tv\//, cachedActiveServer);
+  return downloads.map((dl, index) => {
+    if (dl.url && (dl.url.includes('streamwide.tv') || dl.url.includes('external-server.tv'))) {
+      const originalUrl = dl.url;
+      
+      const randomServerNum = cachedActiveServers[index % cachedActiveServers.length];
+      const serverBase = `https://ant.out.p${randomServerNum}.streamwide.tv`;
+      
+      dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.(streamwide|external-server)\.tv/, serverBase);
+      dl.url = dl.url.replace(/([^:])\/\/+/g, '$1/');
+      
+      if (originalUrl !== dl.url) {
+      }
     }
     return dl;
   });
@@ -224,7 +244,6 @@ async function getDownloadLinks() {
         currentSeasonNum = data.currentSeason || 1;
         currentDownloads = data.downloads;
         
-        // Update downloads with active server
         getActiveServer().then(() => {
           if (cachedActiveServer) {
             currentDownloads = updateLinksWithActiveServer(currentDownloads);
@@ -238,7 +257,6 @@ async function getDownloadLinks() {
       currentType = "movie";
       currentDownloads = data.downloads;
       
-      // Update downloads with active server
       getActiveServer().then(() => {
         if (cachedActiveServer) {
           currentDownloads = updateLinksWithActiveServer(currentDownloads);
@@ -270,7 +288,6 @@ async function loadSeason(seasonId, seasonNum) {
     if (data.success && data.downloads && data.downloads.length > 0) {
       currentDownloads = data.downloads;
       
-      // Update downloads with active server
       getActiveServer().then(() => {
         if (cachedActiveServer) {
           currentDownloads = updateLinksWithActiveServer(currentDownloads);
@@ -304,21 +321,17 @@ function groupBySubType(downloads) {
 }
 
 function getQualityKey(dl) {
-  // Extract quality number (1080, 720, 480, etc.)
   const quality = dl.quality ? `${dl.quality}` : '0';
   return quality;
 }
 
 function getQualityDetails(dl) {
-  // Extract additional details from URL, codec, source, or text
   let details = [];
   
-  // Check URL for quality indicators
   const url = (dl.url || '').toLowerCase();
   const text = (dl.text || '').toLowerCase();
   const combined = `${url} ${text}`.toLowerCase();
   
-  // Quality indicators to look for
   const qualityIndicators = [
     'web-dl', 'webdl', 'web.dl',
     'hdts', 'hd-ts', 'hd.ts',
@@ -332,10 +345,8 @@ function getQualityDetails(dl) {
     'hevc', 'avc'
   ];
   
-  // Find quality indicators in URL or text
   for (const indicator of qualityIndicators) {
     if (combined.includes(indicator)) {
-      // Format the indicator nicely
       let formatted = indicator.toUpperCase();
       if (formatted.includes('.')) formatted = formatted.replace(/\./g, '-');
       if (!details.includes(formatted)) {
@@ -344,7 +355,6 @@ function getQualityDetails(dl) {
     }
   }
   
-  // Also check codec and source properties if available
   if (dl.codec) {
     const codec = dl.codec.toUpperCase();
     if (!details.includes(codec)) details.push(codec);
@@ -354,7 +364,6 @@ function getQualityDetails(dl) {
     if (!details.includes(source)) details.push(source);
   }
   
-  // Return details or "Standard" if none found
   return details.length > 0 ? details.join(' - ') : 'Standard';
 }
 
@@ -367,13 +376,12 @@ function groupByQualityProfile(items) {
     groups[key].push(dl);
   });
   
-  // Sort by quality number (1080, 720, 480, etc.) - high to low
   const sorted = {};
   Object.keys(groups)
     .sort((a, b) => {
       const qa = parseInt(a) || 0;
       const qb = parseInt(b) || 0;
-      return qb - qa; // Descending order (1080 -> 720 -> 480)
+      return qb - qa;
     })
     .forEach(k => sorted[k] = groups[k]);
   
@@ -381,7 +389,6 @@ function groupByQualityProfile(items) {
 }
 
 function groupByQualityDetails(items) {
-  // Group by quality + details for the final step
   const groups = {};
   
   items.forEach(dl => {
@@ -393,7 +400,6 @@ function groupByQualityDetails(items) {
     groups[key].push(dl);
   });
   
-  // Sort by quality details - Standard first, then alphabetically
   const sorted = {};
   Object.keys(groups)
     .sort((a, b) => {

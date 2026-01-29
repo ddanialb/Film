@@ -249,7 +249,7 @@ router.get("/search", async (req, res) => {
 
     const tryUrl = async (link) => {
       const url = `https://subf2m.co${link}`;
-      const html = await fetchHtml(url); // Returns null on error
+      const html = await fetchHtml(url);
       if (!html) {
         console.log(`❌ No HTML returned for ${link}`);
         return null;
@@ -471,7 +471,7 @@ router.get("/download-page", async (req, res) => {
 });
 
 const subtitleCache = new Map();
-const CACHE_TTL = 60 * 1000; // 1 minute only
+const CACHE_TTL = 60 * 1000; 
 
 function cleanCache() {
   const now = Date.now();

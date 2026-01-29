@@ -8,7 +8,6 @@ const crypto = require("crypto");
 
 const router = express.Router();
 
-// Import StreamDB
 const { StreamDB, getSeriesSeasonsFromVideos } = require("./streamwide");
 
 const apiId = parseInt(process.env.TELEGRAM_API_ID);
@@ -27,7 +26,7 @@ const CACHE_FILE = path.join(__dirname, "../data/playlist_cache.json");
 const BOT_USERNAME = "StreamWideBot";
 
 let playlistCache = {};
-const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
+const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000;
 
 try {
   if (fs.existsSync(CACHE_FILE)) {
@@ -155,6 +154,17 @@ let streamwideToken = null;
 let streamwideRefreshToken = null;
 let tokenExpiry = 0;
 
+async function getRandomActiveServer() {
+  try {
+    const response = await fetch('http://localhost:' + (process.env.PORT || 3000) + '/active-server');
+    const data = await response.json();
+    return data.activeServer;
+  } catch (error) {
+    console.error('❌ Failed to get active server:', error.message);
+    return null;
+  }
+}
+
 try {
   if (process.env.STREAMWIDE_REFRESH_TOKEN) {
     streamwideRefreshToken = process.env.STREAMWIDE_REFRESH_TOKEN;
@@ -171,8 +181,8 @@ try {
 
 let client = null;
 let isConnected = false;
-let isLoggingIn = false; // Prevent concurrent login attempts
-let isConnecting = false; // Prevent concurrent connection attempts
+let isLoggingIn = false;
+let isConnecting = false;
 
 function loadSession() {
   try {
@@ -492,7 +502,7 @@ async function authenticateStreamWide(initDataRaw = null) {
 
       if (refreshResponse.data.access) {
         streamwideToken = refreshResponse.data.access;
-        tokenExpiry = Date.now() + 600000; // 10 minutes
+        tokenExpiry = Date.now() + 600000; 
         console.log("✅ Token refreshed");
         return streamwideToken;
       }
@@ -529,7 +539,7 @@ async function authenticateStreamWide(initDataRaw = null) {
     if (response.data.access) {
       streamwideToken = response.data.access;
       streamwideRefreshToken = response.data.refresh;
-      tokenExpiry = Date.now() + 600000; // 10 minutes
+      tokenExpiry = Date.now() + 600000; 
       console.log("✅ StreamWide authenticated!");
 
       try {
@@ -589,6 +599,11 @@ async function fetchStreamWideVideos(playlistId, token = null) {
 
     console.log(`📦 Got ${videos.length} videos`);
 
+    const activeServer = await getRandomActiveServer();
+    if (activeServer) {
+    } else {
+    }
+
     for (const video of videos) {
       if (video.url) {
         const urlParts = video.url.split('/');
@@ -605,10 +620,18 @@ async function fetchStreamWideVideos(playlistId, token = null) {
           } else if (domainValue.in_domain) {
             fullUrl = domainValue.in_domain + video.url;
           } else {
-            fullUrl = `https://ant.out.p${domainKey}.streamwide.tv${video.url}`;
+            if (activeServer) {
+              fullUrl = activeServer + video.url;
+            } else {
+              fullUrl = `https://ant.out.p${domainKey}.streamwide.tv${video.url}`;
+            }
           }
         } else {
-          fullUrl = `https://ant.out.p${domainKey}.streamwide.tv${video.url}`;
+          if (activeServer) {
+            fullUrl = activeServer + video.url;
+          } else {
+            fullUrl = `https://ant.out.p${domainKey}.streamwide.tv${video.url}`;
+          }
         }
 
         const urlMatch = video.url.match(/\/([^\/]+)$/);
@@ -776,7 +799,6 @@ router.get("/get-links", async (req, res) => {
 
     const cleanId = imdbId.startsWith("tt") ? imdbId : `tt${imdbId}`;
 
-    // 🔥 اول از StreamDB بگیر (بدون نیاز به تلگرام!)
     const streamItem = StreamDB.find(cleanId);
     if (streamItem && streamItem.id) {
       console.log(`✅ Found in StreamDB: ${cleanId} -> ${streamItem.id}`);
@@ -784,7 +806,6 @@ router.get("/get-links", async (req, res) => {
       const isSeries = streamItem.type === "TVS";
       
       if (isSeries) {
-        // سریال - اول کش چک کن
         console.log("📺 Series detected, checking cache...");
         
         const cached = getCachedPlaylist(cleanId);
@@ -809,12 +830,9 @@ router.get("/get-links", async (req, res) => {
           }
         }
         
-        // کش نداشت - باید از تلگرام فصل‌ها رو بگیریم (فقط یه بار!)
         console.log("📺 No cache, need Telegram for season IDs (one time only)...");
-        // ادامه به قسمت تلگرام...
         
       } else {
-        // فیلم - مستقیم UUID داریم!
         if (!streamwideToken || Date.now() >= tokenExpiry) {
           try {
             await authenticateStreamWide();
@@ -824,7 +842,6 @@ router.get("/get-links", async (req, res) => {
         }
         
         const downloads = await fetchStreamWideVideos(streamItem.id);
-        // حتی اگه downloads خالی باشه، برگردون - نرو تلگرام!
         cachePlaylist(cleanId, streamItem.id, "movie");
         return res.json({
           success: downloads.length > 0,
@@ -839,7 +856,6 @@ router.get("/get-links", async (req, res) => {
       }
     }
 
-    // اگه توی StreamDB نبود یا سریال بود، ادامه بده...
     if (!streamwideToken || Date.now() >= tokenExpiry) {
       console.log("🔄 Refreshing token...");
       try {
@@ -882,7 +898,6 @@ router.get("/get-links", async (req, res) => {
       console.log("⚠️ Cache hit but no videos, refreshing...");
     }
 
-    // اگه سریال بود و کش نداشت، برو تلگرام برای گرفتن فصل‌ها
     if (!client || !isConnected) {
       console.log("⚠️ Telegram not connected, trying to connect...");
       try {
@@ -920,12 +935,10 @@ router.get("/get-links", async (req, res) => {
         if (inlineResults.results && inlineResults.results.length > 0) {
           const firstResult = inlineResults.results[0];
           
-          // چک کن که نتیجه واقعاً مربوط به این IMDB هست
           const resultTitle = firstResult.title || '';
           const resultDesc = firstResult.description || '';
           const resultMessage = firstResult.sendMessage?.message || '';
           
-          // اگه پیام شامل "جستجو" یا "درخواست" باشه، یعنی پیدا نشده
           if (resultMessage.includes('جستجو') || resultMessage.includes('درخواست') || 
               resultMessage.includes('پیدا نشد') || resultMessage.includes('اضافه')) {
             console.log("❌ Bot says: not found");
@@ -966,11 +979,9 @@ router.get("/get-links", async (req, res) => {
           }
 
           if (seasons.length > 0) {
-            // فقط اگه واقعاً فصل پیدا شد کش کن
             cachePlaylist(cleanId, null, "series", seasons);
             const downloads = await fetchStreamWideVideos(seasons[0].seasonId);
             if (downloads.length === 0) {
-              // اگه ویدیو نداشت، کش رو پاک کن
               clearCache(cleanId);
               return res.json({ success: false, error: "ویدیویی یافت نشد" });
             }
@@ -989,7 +1000,6 @@ router.get("/get-links", async (req, res) => {
             if (downloads.length === 0) {
               return res.json({ success: false, error: "ویدیویی یافت نشد" });
             }
-            // فقط اگه ویدیو داشت کش کن
             cachePlaylist(cleanId, moviePlaylistId, "movie");
             return res.json({
               success: true,
@@ -1002,7 +1012,6 @@ router.get("/get-links", async (req, res) => {
 
           console.log("📨 Sending message to bot...");
           
-          // ذخیره ID آخرین پیام قبل از ارسال
           const beforeMessages = await client.getMessages(bot, { limit: 1 });
           const lastMsgIdBefore = beforeMessages[0]?.id || 0;
           
@@ -1023,7 +1032,6 @@ router.get("/get-links", async (req, res) => {
             const messages = await client.getMessages(bot, { limit: 5 });
 
             for (const msg of messages) {
-              // فقط پیام‌های جدیدتر از قبل از ارسال رو چک کن
               if (!msg || msg.id <= lastMsgIdBefore) continue;
               if (msg && msg.replyMarkup && msg.replyMarkup.rows && msg.replyMarkup.rows.length > 0) {
 
@@ -1046,7 +1054,6 @@ router.get("/get-links", async (req, res) => {
           }
 
           if (latestMsg && latestMsg.replyMarkup && latestMsg.replyMarkup.rows) {
-            // چک کن پیام بات مربوط به همین فیلم/سریال هست
             const msgText = latestMsg.message || '';
             if (msgText.includes('جستجو') || msgText.includes('درخواست') || 
                 msgText.includes('پیدا نشد') || msgText.includes('اضافه')) {
@@ -1156,7 +1163,7 @@ router.post("/set-token", async (req, res) => {
     
     if (access) {
       streamwideToken = access;
-      tokenExpiry = Date.now() + 600000; // 10 min
+      tokenExpiry = Date.now() + 600000; 
       console.log("✅ Access token set manually");
     }
     

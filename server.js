@@ -9,55 +9,108 @@ const cors = require("cors");
 const path = require("path");
 const http = require("http");
 const https = require("https");
+const axios = require("axios");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Server testing system
-let activeServer = null; // Start with null, no default
+let activeServers = [];
 let lastServerCheck = 0;
-const SERVER_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+let currentServerIndex = 0;
+const SERVER_CHECK_INTERVAL = 3 * 60 * 1000;
 
-async function testServer(serverUrl) {
+async function testServer(serverNum) {
   try {
-    const response = await fetch(serverUrl);
-    const data = await response.json();
-    return data.detail === "Go away";
+    const serverUrl = `https://ant.out.p${serverNum}.streamwide.tv/`;
+    console.log(`🔍 Testing server ${serverNum}...`);
+    
+    const response = await axios.get(serverUrl, {
+      timeout: 2000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    console.log(`✅ Server ${serverNum} responded with status ${response.status}`);
+    return true;
+    
   } catch (error) {
+    if (error.response && error.response.status) {
+      console.log(`✅ Server ${serverNum} responded with HTTP ${error.response.status} - SERVER IS WORKING`);
+      return true;
+    }
+    
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+      console.log(`❌ Server ${serverNum} network error: ${error.code}`);
+      return false;
+    }
+    
+    console.log(`❌ Server ${serverNum} unknown error:`, error.message);
     return false;
   }
 }
 
-async function findActiveServer() {
-  console.log("🔍 Testing servers...");
+async function findActiveServers() {
+  console.log('🔍 Testing servers 1-15 for availability...');
   
-  for (let i = 1; i <= 15; i++) {
-    const serverUrl = `https://ant.out.p${i}.streamwide.tv/`;
-    const isActive = await testServer(serverUrl);
-    
+  const serverNumbers = Array.from({length: 15}, (_, i) => i + 1);
+  
+  const testPromises = serverNumbers.map(async (serverNum) => {
+    const isActive = await testServer(serverNum);
     if (isActive) {
-      activeServer = serverUrl;
-      console.log(`✅ Active server found: ${serverUrl}`);
-      return serverUrl;
+      console.log(`✅ Server ${serverNum} is active`);
+    } else {
+      console.log(`❌ Server ${serverNum} is down`);
     }
+    return { serverNum, isActive };
+  });
+  
+  try {
+    const results = await Promise.all(testPromises);
+    
+    const workingServers = results
+      .filter(r => r.isActive)
+      .map(r => r.serverNum);
+    
+    activeServers = workingServers;
+    console.log(`🎯 Active servers: [${workingServers.join(', ')}]`);
+    
+    return workingServers;
+    
+  } catch (error) {
+    console.error('❌ Error testing servers:', error.message);
+    activeServers = [];
+    return [];
+  }
+}
+
+function getRandomActiveServer() {
+  if (activeServers.length === 0) {
+    return null;
   }
   
-  console.log("❌ No active server found");
-  activeServer = null;
-  return null;
+  const serverNum = activeServers[currentServerIndex % activeServers.length];
+  currentServerIndex = (currentServerIndex + 1) % activeServers.length;
+  
+  const serverUrl = `https://ant.out.p${serverNum}.streamwide.tv/`;
+  
+  return serverUrl;
 }
 
 async function checkServerIfNeeded() {
   const now = Date.now();
-  if (now - lastServerCheck > SERVER_CHECK_INTERVAL) {
+  
+  const checkInterval = activeServers.length === 0 ? 30 * 1000 : SERVER_CHECK_INTERVAL;
+  
+  if (now - lastServerCheck > checkInterval) {
     lastServerCheck = now;
-    await findActiveServer();
+    await findActiveServers();
   }
-  return activeServer;
+  
+  return getRandomActiveServer();
 }
 
-// Initial server check
-findActiveServer();
+findActiveServers();
 
 app.use(cors());
 app.use(express.json());
@@ -82,7 +135,6 @@ app.get("/stream", async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).send("URL required");
 
-  // Check server if needed
   await checkServerIfNeeded();
 
   const protocol = url.startsWith("https") ? https : http;
@@ -134,7 +186,46 @@ app.get("/health", (req, res) => {
 
 app.get("/active-server", async (req, res) => {
   const server = await checkServerIfNeeded();
-  res.json({ activeServer: server, lastCheck: new Date(lastServerCheck).toISOString() });
+  res.json({ 
+    activeServer: server, 
+    activeServers: activeServers,
+    lastCheck: new Date(lastServerCheck).toISOString()
+  });
+});
+
+app.get("/set-servers", async (req, res) => {
+  console.log("� Manua lly setting active servers to [1,2,3,4]...");
+  activeServers = [1, 2, 3, 4];
+  lastServerCheck = Date.now();
+  const server = getRandomActiveServer();
+  res.json({ 
+    activeServer: server, 
+    activeServers: activeServers,
+    lastCheck: new Date(lastServerCheck).toISOString()
+  });
+});
+
+app.get("/test-servers", async (req, res) => {
+  console.log("🔄 Force testing servers...");
+  await findActiveServers();
+  const server = getRandomActiveServer();
+  res.json({ 
+    activeServer: server, 
+    activeServers: activeServers,
+    lastCheck: new Date(lastServerCheck).toISOString()
+  });
+});
+
+app.get("/set-servers", async (req, res) => {
+  console.log("🔧 Manually setting active servers to [1,2,3,4]...");
+  activeServers = [1, 2, 3, 4];
+  lastServerCheck = Date.now();
+  const server = getRandomActiveServer();
+  res.json({ 
+    activeServer: server, 
+    activeServers: activeServers,
+    lastCheck: new Date(lastServerCheck).toISOString()
+  });
 });
 
 app.listen(PORT, () => {

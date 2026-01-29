@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>فیلم بینا - پخش آنلاین</title>
+    <link rel="preload" href="/fonts/Shabnam-Light-FD.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/Shabnam-Light-FD.woff" as="font" type="font/woff" crossorigin />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       :root {
@@ -87,6 +89,7 @@
         background: rgba(0, 0, 0, 0.3);
         color: var(--text);
         font-size: 14px;
+        font-family: "ShabnamLightFD", system-ui, sans-serif;
         outline: none;
         direction: ltr;
         text-align: left;
@@ -100,6 +103,7 @@
         border-radius: 10px;
         cursor: pointer;
         font-size: 14px;
+        font-family: "ShabnamLightFD", system-ui, sans-serif;
         font-weight: 600;
       }
       .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -125,11 +129,9 @@
       .video-container.show { display: block; }
       
       video { width: 100%; display: block; }
-      /* Hide native fullscreen button */
       video::-webkit-media-controls-fullscreen-button { display: none !important; }
       video::-webkit-media-controls-toggle-closed-captions-button { display: none !important; }
       
-      /* Custom subtitle overlay */
       .subtitle-overlay {
         position: absolute;
         bottom: 80px;
@@ -162,7 +164,6 @@
       .subtitle-text:active { cursor: grabbing; }
       .subtitle-text:empty { display: none; pointer-events: none; }
       
-      /* Fullscreen styles */
       .video-container:fullscreen,
       .video-container:-webkit-full-screen {
         width: 100vw !important;
@@ -192,7 +193,6 @@
         padding: 12px 24px;
       }
       
-      /* Custom fullscreen button */
       .custom-fullscreen-btn {
         position: absolute;
         bottom: 35px;
@@ -238,7 +238,6 @@
       .status.success { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
       .status.loading { background: rgba(234, 179, 8, 0.1); color: #facc15; }
       
-      /* Selection UI */
       .selection-area {
         background: rgba(0,0,0,0.2);
         border-radius: 12px;
@@ -273,7 +272,6 @@
       }
       .back-link:hover { color: var(--text); }
       
-      /* Type buttons */
       .type-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -301,7 +299,6 @@
       .type-card .label { font-weight: bold; font-size: 14px; }
       .type-card .meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
       
-      /* Quality buttons */
       .quality-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -329,7 +326,6 @@
       .quality-card .q-meta { font-size: 11px; color: var(--muted); }
       .quality-card .q-size { font-size: 10px; color: #2ecc71; background: rgba(46,204,113,0.15); padding: 2px 8px; border-radius: 8px; }
       
-      /* Episode buttons */
       .episode-grid {
         display: flex;
         flex-wrap: wrap;
@@ -361,7 +357,6 @@
       .ep-card .ep-num { font-weight: bold; font-size: 13px; color: var(--primary); }
       .ep-card .ep-size { font-size: 10px; color: var(--muted); }
       
-      /* Current selection display */
       .current-selection {
         display: flex;
         flex-wrap: wrap;
@@ -377,7 +372,6 @@
         color: #feca57;
       }
       
-      /* Subtitle UI */
       .subtitle-section {
         background: rgba(0,0,0,0.3);
         border-radius: 12px;
@@ -712,6 +706,7 @@
       }
       .credit-name {
         background: linear-gradient(135deg, #a78bfa, #60a5fa);
+        background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 700;
@@ -738,8 +733,8 @@
       </header>
 
       <div class="input-group">
-        <input type="text" id="url" placeholder="لینک ویدیو را وارد کنید..." />
-        <button class="btn" id="btn">▶ پخش</button>
+        <input type="text" id="url" placeholder="پخش: Zootopia 2" style="font-family: 'ShabnamLightFD', system-ui, sans-serif;" />
+        <button class="btn" id="btn" style="font-family: 'ShabnamLightFD', system-ui, sans-serif;">▶ پخش</button>
       </div>
 
       <div class="loader" id="loader"><div class="spinner"></div></div>
@@ -799,7 +794,7 @@
         <div class="subtitle-content" id="subtitleContent">
           <div class="sub-search-row">
             <input type="text" id="imdbInput" placeholder="IMDB ID (خودکار پر میشه)" style="display:none;" />
-            <button class="btn" id="searchSubBtn" style="width:100%;">🔍 جستجوی زیرنویس</button>
+            <button class="btn" id="searchSubBtn" style="width:100%; font-family: 'ShabnamLightFD', system-ui, sans-serif;">🔍 جستجوی زیرنویس</button>
           </div>
           <div class="sub-search-row" style="margin-top:10px; direction:ltr;">
             <input type="text" id="srtUrlInput" placeholder="Paste SRT URL here..." style="flex:1; text-align:left;" />
@@ -838,41 +833,59 @@
       let selectedSubType = null;
       let selectedQuality = null;
       let selectedQualityDetail = null;
-      let sourceType = null; // 'telegram' or 'persian'
+      let sourceType = null;
 
-      // Server management
       let cachedActiveServer = null;
+      let cachedActiveServers = [];
       let lastServerFetch = 0;
-      const SERVER_CACHE_TIME = 5 * 60 * 1000; // 5 minutes
+      const SERVER_CACHE_TIME = 2 * 60 * 1000;
 
       async function getActiveServer() {
         const now = Date.now();
-        if (cachedActiveServer && (now - lastServerFetch < SERVER_CACHE_TIME)) {
+        if (cachedActiveServer && cachedActiveServers.length > 0 && (now - lastServerFetch < SERVER_CACHE_TIME)) {
           return cachedActiveServer;
         }
         
         try {
           const response = await fetch('/active-server');
           const data = await response.json();
-          cachedActiveServer = data.activeServer;
-          lastServerFetch = now;
+          
+          if (data.activeServer && data.activeServers && data.activeServers.length > 0) {
+            cachedActiveServer = data.activeServer;
+            cachedActiveServers = data.activeServers;
+            lastServerFetch = now;
+            console.log(`✅ Active server: ${data.activeServer}`);
+            console.log(`📊 Available servers: [${data.activeServers.join(', ')}] (${data.activeServers.length} total)`);
+          } else {
+            console.log('⚠️ No active servers available');
+            cachedActiveServer = null;
+            cachedActiveServers = [];
+          }
+          
           return cachedActiveServer;
         } catch (error) {
-          // Don't use p1 as fallback, return null if no server is working
-          return null;
+          console.error('❌ Failed to fetch active servers:', error);
+          return cachedActiveServer;
         }
       }
 
       function updateLinksWithActiveServer(downloads) {
-        if (!cachedActiveServer) {
-          // If no active server, remove external links entirely
-          return downloads.filter(dl => !dl.url || !dl.url.includes('external-server.tv'));
+        if (!cachedActiveServers || cachedActiveServers.length === 0) {
+          return downloads;
         }
         
-        return downloads.map(dl => {
-          if (dl.url && dl.url.includes('external-server.tv')) {
-            // Replace any existing external server with active one
-            dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.external-server\.tv\//, cachedActiveServer);
+        return downloads.map((dl, index) => {
+          if (dl.url && (dl.url.includes('streamwide.tv') || dl.url.includes('external-server.tv'))) {
+            const originalUrl = dl.url;
+            
+            const randomServerNum = cachedActiveServers[index % cachedActiveServers.length];
+            const serverBase = `https://ant.out.p${randomServerNum}.streamwide.tv`;
+            
+            dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.(streamwide|external-server)\.tv/, serverBase);
+            dl.url = dl.url.replace(/([^:])\/\/+/g, '$1/');
+            
+            if (originalUrl !== dl.url) {
+            }
           }
           return dl;
         });
@@ -890,12 +903,16 @@
         player.classList.remove("show");
         setStatus("در حال بارگذاری...", "loading");
 
-        // Update link with active server if it's an external link
         getActiveServer().then((activeServer) => {
-          if (activeServer && link.includes('external-server.tv')) {
-            link = link.replace(/https:\/\/ant\.out\.p\d+\.external-server\.tv\//, activeServer);
-          } else if (!activeServer && link.includes('external-server.tv')) {
-            // No active server available for external links
+          if (activeServer && cachedActiveServers.length > 0 && (link.includes('streamwide.tv') || link.includes('external-server.tv'))) {
+            const originalLink = link;
+            const randomServerNum = cachedActiveServers[Math.floor(Math.random() * cachedActiveServers.length)];
+            const serverBase = `https://ant.out.p${randomServerNum}.streamwide.tv`;
+            link = link.replace(/https:\/\/ant\.out\.p\d+\.(streamwide|external-server)\.tv/, serverBase);
+            link = link.replace(/([^:])\/\/+/g, '$1/');
+            if (originalLink !== link) {
+            }
+          } else if (!activeServer && (link.includes('streamwide.tv') || link.includes('external-server.tv'))) {
             loader.classList.remove("show");
             setStatus("❌ سرور در دسترس نیست", "error");
             btn.disabled = false;
@@ -918,15 +935,11 @@
         });
       }
 
-      // Simple fullscreen fix - just use container fullscreen on double click
-      // Native fullscreen button will work but subtitle won't show (browser limitation)
-      // Double click uses container fullscreen which shows subtitle
       video.addEventListener('dblclick', (e) => {
         e.preventDefault();
         toggleContainerFullscreen();
       });
       
-      // Custom fullscreen button
       const fullscreenBtn = $('fullscreenBtn');
       let hideTimeout = null;
       
@@ -973,7 +986,6 @@
         }
       }
       
-      // Update fullscreen button icon
       document.addEventListener('fullscreenchange', updateFullscreenIcon);
       document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
       
@@ -983,7 +995,6 @@
         fullscreenBtn.title = fs ? 'خروج از تمام صفحه' : 'تمام صفحه (با زیرنویس)';
       }
       
-      // Draggable subtitle - vertical only
       const subtitleOverlay = $('subtitleOverlay');
       const subtitleText = $('subtitleText');
       let isDragging = false;
@@ -1006,7 +1017,6 @@
       
       document.addEventListener('mouseup', () => { isDragging = false; });
       
-      // Touch support
       subtitleText.addEventListener('touchstart', (e) => {
         isDragging = true;
         startY = e.touches[0].clientY;
@@ -1042,21 +1052,17 @@
       }
 
       function getQualityKey(dl) {
-        // Extract quality number (1080, 720, 480, etc.)
         const quality = dl.quality ? `${dl.quality}` : '0';
         return quality;
       }
 
       function getQualityDetails(dl) {
-        // Extract additional details from URL, codec, source, or text
         let details = [];
         
-        // Check URL for quality indicators
         const url = (dl.url || '').toLowerCase();
         const text = (dl.text || '').toLowerCase();
         const combined = `${url} ${text}`.toLowerCase();
         
-        // Quality indicators to look for
         const qualityIndicators = [
           'web-dl', 'webdl', 'web.dl',
           'hdts', 'hd-ts', 'hd.ts',
@@ -1070,10 +1076,8 @@
           'hevc', 'avc'
         ];
         
-        // Find quality indicators in URL or text
         for (const indicator of qualityIndicators) {
           if (combined.includes(indicator)) {
-            // Format the indicator nicely
             let formatted = indicator.toUpperCase();
             if (formatted.includes('.')) formatted = formatted.replace(/\./g, '-');
             if (!details.includes(formatted)) {
@@ -1082,7 +1086,6 @@
           }
         }
         
-        // Also check codec and source properties if available
         if (dl.codec) {
           const codec = dl.codec.toUpperCase();
           if (!details.includes(codec)) details.push(codec);
@@ -1092,7 +1095,6 @@
           if (!details.includes(source)) details.push(source);
         }
         
-        // Return details or "Standard" if none found
         return details.length > 0 ? details.join(' - ') : 'Standard';
       }
 
@@ -1107,13 +1109,12 @@
           Object.entries(groups).sort((a, b) => {
             const qa = parseInt(a[0]) || 0;
             const qb = parseInt(b[0]) || 0;
-            return qb - qa; // Descending order (1080 -> 720 -> 480)
+            return qb - qa; 
           })
         );
       }
 
       function groupByQualityDetails(items) {
-        // Group by quality + details for the final step
         const groups = {};
         
         items.forEach(dl => {
@@ -1125,7 +1126,6 @@
           groups[key].push(dl);
         });
         
-        // Sort by quality details - Standard first, then alphabetically
         const sorted = {};
         Object.keys(groups)
           .sort((a, b) => {
@@ -1153,12 +1153,16 @@
           if (data.success && data.downloadUrl) {
             let url = data.downloadUrl;
             
-            // Update URL with active server if it's an external link
             const activeServer = await getActiveServer();
-            if (activeServer && url.includes('external-server.tv')) {
-              url = url.replace(/https:\/\/ant\.out\.p\d+\.external-server\.tv\//, activeServer);
-            } else if (!activeServer && url.includes('external-server.tv')) {
-              // No active server available for external links
+            if (activeServer && cachedActiveServers.length > 0 && (url.includes('streamwide.tv') || url.includes('external-server.tv'))) {
+              const originalUrl = url;
+              const randomServerNum = cachedActiveServers[Math.floor(Math.random() * cachedActiveServers.length)];
+              const serverBase = `https://ant.out.p${randomServerNum}.streamwide.tv`;
+              url = url.replace(/https:\/\/ant\.out\.p\d+\.(streamwide|external-server)\.tv/, serverBase);
+              url = url.replace(/([^:])\/\/+/g, '$1/');
+              if (originalUrl !== url) {
+              }
+            } else if (!activeServer && (url.includes('streamwide.tv') || url.includes('external-server.tv'))) {
               setStatus("❌ سرور در دسترس نیست", "error");
               return;
             }
@@ -1424,12 +1428,12 @@
 
       async function searchSubtitles(retryCount = 0) {
         const MAX_RETRIES = 3;
-        const RETRY_DELAY = 1500; // 1.5 seconds
+        const RETRY_DELAY = 1500;
         
         let imdb = $("imdbInput").value.trim();
         let season = null;
         let title = null;
-        let type = "movie"; // default to movie
+        let type = "movie";
 
         if (!imdb) {
           try {
@@ -1670,7 +1674,7 @@
           video.addEventListener("seeking", renderSubtitleOverlay);
           
           setSubStatus(`✓ زیرنویس فعال شد (${parsedCues.length} خط)`, "success");
-          $("subSettingsBar").style.display = "block"; // Show settings bar
+          $("subSettingsBar").style.display = "block";
 
           updateSubStyle();
         } catch (e) {
@@ -1891,12 +1895,10 @@
       }
 
       if (imdbId && sourceType !== 'persian') {
-        // Only search subtitles for non-Persian movies with IMDB ID
         $("imdbInput").value = imdbId;
         toggleSubtitlePanel();
         setTimeout(searchSubtitles, 500);
       } else if (sourceType !== 'persian') {
-        // Only auto-search subtitles for non-Persian movies
         try {
           const telegramData = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
           const persianData = JSON.parse(localStorage.getItem("persian-current-stream") || "{}");
@@ -1908,7 +1910,6 @@
           }
         } catch (e) {}
       } else {
-        // For Persian movies, ensure no subtitle search happens
         console.log('Persian movie detected - skipping subtitle search');
       }
 
@@ -1921,10 +1922,9 @@
           telegramData = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
           console.log('Loaded telegramData:', telegramData);
           
-          // Update downloads with active server
           if (telegramData.downloads) {
             getActiveServer().then(() => {
-              if (cachedActiveServer) {
+              if (cachedActiveServers && cachedActiveServers.length > 0) {
                 telegramData.downloads = updateLinksWithActiveServer(telegramData.downloads);
               }
               
@@ -1958,11 +1958,9 @@
               initPersianPlayer(streamData);
             }
             
-            // COMPLETELY clear all subtitle cache and prevent any subtitle loading for Persian movies
             clearAllSubtitleData();
             showPersianMovieSubtitleMessage();
             
-            // Keep subtitle panel closed for Persian movies
             const subtitleContent = $("subtitleContent");
             const toggle = $("subToggle");
             if (subtitleContent && toggle) {
@@ -1976,9 +1974,7 @@
       }
       
       function clearAllSubtitleData() {
-        // Clear ALL subtitle-related localStorage data
         try {
-          // Remove all possible subtitle cache keys
           const keysToRemove = [];
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -1988,60 +1984,50 @@
           }
           keysToRemove.forEach(key => localStorage.removeItem(key));
           
-          // Also clear specific known keys
           localStorage.removeItem('telegram-downloads');
           localStorage.removeItem('sub-settings');
         } catch (e) {
           console.error('Error clearing localStorage:', e);
         }
         
-        // Clear all subtitle-related variables
         subtitleLanguages = [];
         currentSubtitles = [];
         currentCacheKey = null;
         parsedCues = [];
         subtitleDelay = 0;
         
-        // Clear all UI elements
         $("langContainer").innerHTML = "";
         $("subListContainer").innerHTML = "";
         $("filePickerContainer").innerHTML = "";
         
-        // Clear inputs
         const imdbInput = $("imdbInput");
         if (imdbInput) imdbInput.value = "";
         
         const srtUrlInput = $("srtUrlInput");
         if (srtUrlInput) srtUrlInput.value = "";
         
-        // Remove any active subtitle
         removeSubtitle();
         
-        // Clear subtitle status
         setSubStatus("", "");
       }
       
       function showPersianMovieSubtitleMessage() {
-        // Hide the search button completely for Persian movies
         const searchBtn = $("searchSubBtn");
         if (searchBtn) {
           searchBtn.style.display = "none";
         }
         
-        // Clear all subtitle containers first
         $("langContainer").innerHTML = "";
         $("subListContainer").innerHTML = "";
         $("filePickerContainer").innerHTML = "";
         
         const subtitleContent = $("subtitleContent");
         
-        // Remove any existing Persian message
         const existingMessage = document.getElementById('persianSubtitleMessage');
         if (existingMessage) {
           existingMessage.remove();
         }
         
-        // Add Persian movie subtitle message
         const persianMessage = document.createElement('div');
         persianMessage.id = 'persianSubtitleMessage';
         persianMessage.style.cssText = `
@@ -2063,11 +2049,9 @@
           </div>
         `;
         
-        // Insert the message at the beginning of subtitle content
         const firstChild = subtitleContent.firstChild;
         subtitleContent.insertBefore(persianMessage, firstChild);
         
-        // Update the subtitle status
         setSubStatus("فیلم فارسی - زیرنویس موجود نیست", "error");
       }
     </script>
