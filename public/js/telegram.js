@@ -19,6 +19,45 @@ let currentDownloads = [];
 
 let selectedSubType = null;
 let selectedQuality = null;
+let selectedQualityDetail = null;
+
+// Server management
+let cachedActiveServer = null;
+let lastServerFetch = 0;
+const SERVER_CACHE_TIME = 5 * 60 * 1000; // 5 minutes
+
+async function getActiveServer() {
+  const now = Date.now();
+  if (cachedActiveServer && (now - lastServerFetch < SERVER_CACHE_TIME)) {
+    return cachedActiveServer;
+  }
+  
+  try {
+    const response = await fetch('/active-server');
+    const data = await response.json();
+    cachedActiveServer = data.activeServer;
+    lastServerFetch = now;
+    return cachedActiveServer;
+  } catch (error) {
+    // Don't use p1 as fallback, return null if no server is working
+    return null;
+  }
+}
+
+function updateLinksWithActiveServer(downloads) {
+  if (!cachedActiveServer) {
+    // If no active server, remove streamwide links entirely
+    return downloads.filter(dl => !dl.url || !dl.url.includes('streamwide.tv'));
+  }
+  
+  return downloads.map(dl => {
+    if (dl.url && dl.url.includes('streamwide.tv')) {
+      // Replace any existing streamwide server with active one
+      dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.streamwide\.tv\//, cachedActiveServer);
+    }
+    return dl;
+  });
+}
 
 function showSkeletons(count = 6) {
   let html = "";
@@ -118,6 +157,7 @@ function selectMovie(imdbId, title, image, year, isSeries) {
   currentDownloads = [];
   selectedSubType = null;
   selectedQuality = null;
+  selectedQualityDetail = null;
 
   const typeIcon = currentType === "series" ? "📺" : "🎬";
   const typeLabel = currentType === "series" ? "سریال" : "فیلم";
@@ -183,14 +223,28 @@ async function getDownloadLinks() {
       if (data.downloads && data.downloads.length > 0) {
         currentSeasonNum = data.currentSeason || 1;
         currentDownloads = data.downloads;
-        renderUI();
+        
+        // Update downloads with active server
+        getActiveServer().then(() => {
+          if (cachedActiveServer) {
+            currentDownloads = updateLinksWithActiveServer(currentDownloads);
+          }
+          renderUI();
+        });
       } else {
         await loadSeason(data.seasons[0].seasonId, data.seasons[0].seasonNum);
       }
     } else if (data.downloads && data.downloads.length > 0) {
       currentType = "movie";
       currentDownloads = data.downloads;
-      renderUI();
+      
+      // Update downloads with active server
+      getActiveServer().then(() => {
+        if (cachedActiveServer) {
+          currentDownloads = updateLinksWithActiveServer(currentDownloads);
+        }
+        renderUI();
+      });
     } else {
       linksContainer.innerHTML = '<div class="no-results">❌ No links found</div>';
     }
@@ -206,6 +260,7 @@ async function loadSeason(seasonId, seasonNum) {
   currentSeasonNum = seasonNum;
   selectedSubType = null;
   selectedQuality = null;
+  selectedQualityDetail = null;
   linksContainer.innerHTML = `<div class="loading active"><div class="loading-spinner"></div><p>Loading Season ${seasonNum}...</p></div>`;
   
   try {
@@ -214,7 +269,14 @@ async function loadSeason(seasonId, seasonNum) {
     
     if (data.success && data.downloads && data.downloads.length > 0) {
       currentDownloads = data.downloads;
-      renderUI();
+      
+      // Update downloads with active server
+      getActiveServer().then(() => {
+        if (cachedActiveServer) {
+          currentDownloads = updateLinksWithActiveServer(currentDownloads);
+        }
+        renderUI();
+      });
     } else {
       linksContainer.innerHTML = `<div class="no-results">❌ ${data.error || 'No links'}</div>`;
     }
@@ -225,10 +287,10 @@ async function loadSeason(seasonId, seasonNum) {
 
 function groupBySubType(downloads) {
   const groups = {
-    dubbed: { label: '🎙️ دوبله', icon: '🎙️', items: [] },
-    softsub: { label: '💬 زیرنویس جدا', icon: '💬', items: [] },
-    hardsub: { label: '📝 زیرنویس چسبیده', icon: '📝', items: [] },
-    other: { label: '📦 خام', icon: '📦', items: [] }
+    dubbed: { label: '🎙️ Dubbed', icon: '🎙️', items: [] },
+    softsub: { label: '💬 Soft Subtitle', icon: '💬', items: [] },
+    hardsub: { label: '📝 Hard Subtitle', icon: '📝', items: [] },
+    other: { label: '📦 Raw', icon: '📦', items: [] }
   };
   
   downloads.forEach(dl => {
@@ -242,10 +304,58 @@ function groupBySubType(downloads) {
 }
 
 function getQualityKey(dl) {
-  let key = dl.quality ? `${dl.quality}p` : '0p';
-  if (dl.codec) key += ` ${dl.codec}`;
-  if (dl.source) key += ` ${dl.source}`;
-  return key;
+  // Extract quality number (1080, 720, 480, etc.)
+  const quality = dl.quality ? `${dl.quality}` : '0';
+  return quality;
+}
+
+function getQualityDetails(dl) {
+  // Extract additional details from URL, codec, source, or text
+  let details = [];
+  
+  // Check URL for quality indicators
+  const url = (dl.url || '').toLowerCase();
+  const text = (dl.text || '').toLowerCase();
+  const combined = `${url} ${text}`.toLowerCase();
+  
+  // Quality indicators to look for
+  const qualityIndicators = [
+    'web-dl', 'webdl', 'web.dl',
+    'hdts', 'hd-ts', 'hd.ts',
+    'hdcam', 'hd-cam', 'hd.cam',
+    'brrip', 'br-rip', 'br.rip',
+    'bluray', 'blu-ray', 'blu.ray',
+    'dvdrip', 'dvd-rip', 'dvd.rip',
+    'webrip', 'web-rip', 'web.rip',
+    'hdtv', 'hd-tv', 'hd.tv',
+    'x264', 'x265', 'h264', 'h265',
+    'hevc', 'avc'
+  ];
+  
+  // Find quality indicators in URL or text
+  for (const indicator of qualityIndicators) {
+    if (combined.includes(indicator)) {
+      // Format the indicator nicely
+      let formatted = indicator.toUpperCase();
+      if (formatted.includes('.')) formatted = formatted.replace(/\./g, '-');
+      if (!details.includes(formatted)) {
+        details.push(formatted);
+      }
+    }
+  }
+  
+  // Also check codec and source properties if available
+  if (dl.codec) {
+    const codec = dl.codec.toUpperCase();
+    if (!details.includes(codec)) details.push(codec);
+  }
+  if (dl.source) {
+    const source = dl.source.toUpperCase();
+    if (!details.includes(source)) details.push(source);
+  }
+  
+  // Return details or "Standard" if none found
+  return details.length > 0 ? details.join(' - ') : 'Standard';
 }
 
 function groupByQualityProfile(items) {
@@ -257,12 +367,38 @@ function groupByQualityProfile(items) {
     groups[key].push(dl);
   });
   
+  // Sort by quality number (1080, 720, 480, etc.) - high to low
   const sorted = {};
   Object.keys(groups)
     .sort((a, b) => {
-      const qa = parseInt(a.match(/(\d+)p/)?.[1] || 0);
-      const qb = parseInt(b.match(/(\d+)p/)?.[1] || 0);
-      if (qb !== qa) return qb - qa;
+      const qa = parseInt(a) || 0;
+      const qb = parseInt(b) || 0;
+      return qb - qa; // Descending order (1080 -> 720 -> 480)
+    })
+    .forEach(k => sorted[k] = groups[k]);
+  
+  return sorted;
+}
+
+function groupByQualityDetails(items) {
+  // Group by quality + details for the final step
+  const groups = {};
+  
+  items.forEach(dl => {
+    const quality = getQualityKey(dl);
+    const details = getQualityDetails(dl);
+    const key = `${quality}p ${details}`;
+    
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(dl);
+  });
+  
+  // Sort by quality details - Standard first, then alphabetically
+  const sorted = {};
+  Object.keys(groups)
+    .sort((a, b) => {
+      if (a.includes('Standard') && !b.includes('Standard')) return -1;
+      if (!a.includes('Standard') && b.includes('Standard')) return 1;
       return a.localeCompare(b);
     })
     .forEach(k => sorted[k] = groups[k]);
@@ -273,11 +409,18 @@ function groupByQualityProfile(items) {
 function selectSubType(subType) {
   selectedSubType = subType;
   selectedQuality = null;
+  selectedQualityDetail = null;
   renderUI();
 }
 
 function selectQualityProfile(quality) {
   selectedQuality = quality;
+  selectedQualityDetail = null;
+  renderUI();
+}
+
+function selectQualityDetail(qualityDetail) {
+  selectedQualityDetail = qualityDetail;
   renderUI();
 }
 
@@ -285,8 +428,12 @@ function goBack(level) {
   if (level === 'subtype') {
     selectedSubType = null;
     selectedQuality = null;
+    selectedQualityDetail = null;
   } else if (level === 'quality') {
     selectedQuality = null;
+    selectedQualityDetail = null;
+  } else if (level === 'detail') {
+    selectedQualityDetail = null;
   }
   renderUI();
 }
@@ -335,7 +482,7 @@ function renderUI() {
         <button class="type-btn" onclick="selectSubType('${subType}')">
           <span class="type-icon">${group.icon}</span>
           <span class="type-label">${group.label}</span>
-          <span class="type-info">${isSeries ? episodeCount + ' قسمت' : group.items.length + ' فایل'} • ${qualityCount} کیفیت</span>
+          <span class="type-info">${isSeries ? episodeCount + ' Episodes' : group.items.length + ' Files'} • ${qualityCount} Qualities</span>
         </button>
       `;
     }
@@ -359,9 +506,37 @@ function renderUI() {
       
       html += `
         <button class="quality-btn-card" onclick="selectQualityProfile('${escapeHtml(qualityKey)}')">
-          <span class="quality-name">${qualityKey}</span>
-          <span class="quality-info">${isSeries ? episodeCount + ' قسمت' : items.length + ' فایل'}</span>
-          ${avgSize ? `<span class="quality-size">~${avgSize}/قسمت</span>` : ''}
+          <span class="quality-name">${qualityKey}p</span>
+          <span class="quality-info">${isSeries ? episodeCount + ' Episodes' : items.length + ' Files'}</span>
+          ${avgSize ? `<span class="quality-size">~${avgSize}/file</span>` : ''}
+        </button>
+      `;
+    }
+    
+    html += '</div>';
+  }
+
+  else if (!selectedQualityDetail) {
+    const group = subTypeGroups[selectedSubType];
+    const qualityGroups = groupByQualityProfile(group.items);
+    const items = qualityGroups[selectedQuality] || [];
+    const detailGroups = groupByQualityDetails(items);
+    
+    html += `<div class="current-sel"><span class="sel-tag">${group.icon} ${group.label}</span><span class="sel-tag">📀 ${selectedQuality}p</span></div>`;
+    html += `<button class="back-btn-small" onclick="goBack('quality')">← Back</button>`;
+    html += '<h3 class="step-title">3️⃣ Select Quality Type</h3>';
+    html += '<div class="quality-selector-grid">';
+    
+    for (const [detailKey, detailItems] of Object.entries(detailGroups)) {
+      const episodeCount = new Set(detailItems.map(d => d.episode)).size;
+      const totalSize = detailItems.reduce((sum, d) => sum + (d.sizeBytes || 0), 0);
+      const avgSize = detailItems.length > 0 ? formatSizeJS(totalSize / detailItems.length) : '';
+      
+      html += `
+        <button class="quality-btn-card" onclick="selectQualityDetail('${escapeHtml(detailKey)}')">
+          <span class="quality-name">${detailKey}</span>
+          <span class="quality-info">${isSeries ? episodeCount + ' Episodes' : detailItems.length + ' Files'}</span>
+          ${avgSize ? `<span class="quality-size">~${avgSize}/file</span>` : ''}
         </button>
       `;
     }
@@ -372,13 +547,15 @@ function renderUI() {
   else {
     const group = subTypeGroups[selectedSubType];
     const qualityGroups = groupByQualityProfile(group.items);
-    const items = qualityGroups[selectedQuality] || [];
+    const qualityItems = qualityGroups[selectedQuality] || [];
+    const detailGroups = groupByQualityDetails(qualityItems);
+    const items = detailGroups[selectedQualityDetail] || [];
     
-    html += `<div class="current-sel"><span class="sel-tag">${group.icon} ${group.label}</span><span class="sel-tag">📀 ${selectedQuality}</span></div>`;
-    html += `<button class="back-btn-small" onclick="goBack('quality')">← Back</button>`;
+    html += `<div class="current-sel"><span class="sel-tag">${group.icon} ${group.label}</span><span class="sel-tag">📀 ${selectedQuality}p</span><span class="sel-tag">🎯 ${selectedQualityDetail}</span></div>`;
+    html += `<button class="back-btn-small" onclick="goBack('detail')">← Back</button>`;
     
     if (isSeries) {
-      html += '<h3 class="step-title">3️⃣ Select Episode</h3>';
+      html += '<h3 class="step-title">4️⃣ Select Episode</h3>';
       html += '<div class="episodes-grid">';
       items.sort((a, b) => (a.episode || 999) - (b.episode || 999));
       
@@ -388,10 +565,16 @@ function renderUI() {
       });
       html += '</div>';
     } else {
-      html += '<h3 class="step-title">3️⃣ Download</h3>';
-      html += '<div class="movie-links">';
+      html += '<h3 class="step-title">4️⃣ Download</h3>';
+      html += '<div class="quality-selector-grid">';
       items.forEach(dl => {
-        html += `<a href="${dl.url}" target="_blank" class="dl-btn"><span class="dl-size">${dl.size || 'Download'}</span><span class="dl-icon">⬇️</span></a>`;
+        html += `
+          <a href="${dl.url}" target="_blank" class="quality-btn-card" style="text-decoration: none;">
+            <span class="quality-name">Download</span>
+            <span class="quality-info">${dl.size || 'File'}</span>
+            <span class="quality-size">⬇️ Click to Download</span>
+          </a>
+        `;
       });
       html += '</div>';
     }

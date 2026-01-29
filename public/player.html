@@ -837,7 +837,46 @@
       let telegramData = null;
       let selectedSubType = null;
       let selectedQuality = null;
+      let selectedQualityDetail = null;
       let sourceType = null; // 'telegram' or 'farsiland'
+
+      // Server management
+      let cachedActiveServer = null;
+      let lastServerFetch = 0;
+      const SERVER_CACHE_TIME = 5 * 60 * 1000; // 5 minutes
+
+      async function getActiveServer() {
+        const now = Date.now();
+        if (cachedActiveServer && (now - lastServerFetch < SERVER_CACHE_TIME)) {
+          return cachedActiveServer;
+        }
+        
+        try {
+          const response = await fetch('/active-server');
+          const data = await response.json();
+          cachedActiveServer = data.activeServer;
+          lastServerFetch = now;
+          return cachedActiveServer;
+        } catch (error) {
+          // Don't use p1 as fallback, return null if no server is working
+          return null;
+        }
+      }
+
+      function updateLinksWithActiveServer(downloads) {
+        if (!cachedActiveServer) {
+          // If no active server, remove streamwide links entirely
+          return downloads.filter(dl => !dl.url || !dl.url.includes('streamwide.tv'));
+        }
+        
+        return downloads.map(dl => {
+          if (dl.url && dl.url.includes('streamwide.tv')) {
+            // Replace any existing streamwide server with active one
+            dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.streamwide\.tv\//, cachedActiveServer);
+          }
+          return dl;
+        });
+      }
 
       const setStatus = (msg, type) => {
         statusEl.textContent = msg;
@@ -851,19 +890,32 @@
         player.classList.remove("show");
         setStatus("در حال بارگذاری...", "loading");
 
-        video.src = "/stream?url=" + encodeURIComponent(link);
-        video.onloadeddata = () => {
-          loader.classList.remove("show");
-          player.classList.add("show");
-          setStatus("آماده پخش ✓", "success");
-          btn.disabled = false;
-          video.play().catch(() => {});
-        };
-        video.onerror = () => {
-          loader.classList.remove("show");
-          setStatus("خطا در بارگذاری", "error");
-          btn.disabled = false;
-        };
+        // Update link with active server if it's a streamwide link
+        getActiveServer().then((activeServer) => {
+          if (activeServer && link.includes('streamwide.tv')) {
+            link = link.replace(/https:\/\/ant\.out\.p\d+\.streamwide\.tv\//, activeServer);
+          } else if (!activeServer && link.includes('streamwide.tv')) {
+            // No active server available for streamwide links
+            loader.classList.remove("show");
+            setStatus("❌ سرور در دسترس نیست", "error");
+            btn.disabled = false;
+            return;
+          }
+          
+          video.src = "/stream?url=" + encodeURIComponent(link);
+          video.onloadeddata = () => {
+            loader.classList.remove("show");
+            player.classList.add("show");
+            setStatus("آماده پخش ✓", "success");
+            btn.disabled = false;
+            video.play().catch(() => {});
+          };
+          video.onerror = () => {
+            loader.classList.remove("show");
+            setStatus("خطا در بارگذاری", "error");
+            btn.disabled = false;
+          };
+        });
       }
 
       // Simple fullscreen fix - just use container fullscreen on double click
@@ -975,10 +1027,10 @@
 
       function groupBySubType(downloads) {
         const groups = {
-          dubbed: { label: 'دوبله', icon: '🎙️', items: [] },
-          softsub: { label: 'زیرنویس جدا', icon: '💬', items: [] },
-          hardsub: { label: 'زیرنویس چسبیده', icon: '📝', items: [] },
-          other: { label: 'خام', icon: '📦', items: [] }
+          dubbed: { label: 'Dubbed', icon: '🎙️', items: [] },
+          softsub: { label: 'Soft Subtitle', icon: '💬', items: [] },
+          hardsub: { label: 'Hard Subtitle', icon: '📝', items: [] },
+          other: { label: 'Raw', icon: '📦', items: [] }
         };
         downloads.forEach(dl => {
           if (dl.subType === 'dubbed') groups.dubbed.items.push(dl);
@@ -990,10 +1042,58 @@
       }
 
       function getQualityKey(dl) {
-        let key = dl.quality ? `${dl.quality}p` : '0p';
-        if (dl.codec) key += ` ${dl.codec}`;
-        if (dl.source) key += ` ${dl.source}`;
-        return key;
+        // Extract quality number (1080, 720, 480, etc.)
+        const quality = dl.quality ? `${dl.quality}` : '0';
+        return quality;
+      }
+
+      function getQualityDetails(dl) {
+        // Extract additional details from URL, codec, source, or text
+        let details = [];
+        
+        // Check URL for quality indicators
+        const url = (dl.url || '').toLowerCase();
+        const text = (dl.text || '').toLowerCase();
+        const combined = `${url} ${text}`.toLowerCase();
+        
+        // Quality indicators to look for
+        const qualityIndicators = [
+          'web-dl', 'webdl', 'web.dl',
+          'hdts', 'hd-ts', 'hd.ts',
+          'hdcam', 'hd-cam', 'hd.cam',
+          'brrip', 'br-rip', 'br.rip',
+          'bluray', 'blu-ray', 'blu.ray',
+          'dvdrip', 'dvd-rip', 'dvd.rip',
+          'webrip', 'web-rip', 'web.rip',
+          'hdtv', 'hd-tv', 'hd.tv',
+          'x264', 'x265', 'h264', 'h265',
+          'hevc', 'avc'
+        ];
+        
+        // Find quality indicators in URL or text
+        for (const indicator of qualityIndicators) {
+          if (combined.includes(indicator)) {
+            // Format the indicator nicely
+            let formatted = indicator.toUpperCase();
+            if (formatted.includes('.')) formatted = formatted.replace(/\./g, '-');
+            if (!details.includes(formatted)) {
+              details.push(formatted);
+            }
+          }
+        }
+        
+        // Also check codec and source properties if available
+        if (dl.codec) {
+          const codec = dl.codec.toUpperCase();
+          if (!details.includes(codec)) details.push(codec);
+        }
+        if (dl.source) {
+          const source = dl.source.toUpperCase();
+          if (!details.includes(source)) details.push(source);
+        }
+        
+        // Return details or "Standard" if none found
+        return details.length > 0 ? details.join(' - ') : 'Standard';
       }
 
       function groupByQuality(items) {
@@ -1005,11 +1105,37 @@
         });
         return Object.fromEntries(
           Object.entries(groups).sort((a, b) => {
-            const qa = parseInt(a[0].match(/(\d+)p/)?.[1] || 0);
-            const qb = parseInt(b[0].match(/(\d+)p/)?.[1] || 0);
-            return qb - qa;
+            const qa = parseInt(a[0]) || 0;
+            const qb = parseInt(b[0]) || 0;
+            return qb - qa; // Descending order (1080 -> 720 -> 480)
           })
         );
+      }
+
+      function groupByQualityDetails(items) {
+        // Group by quality + details for the final step
+        const groups = {};
+        
+        items.forEach(dl => {
+          const quality = getQualityKey(dl);
+          const details = getQualityDetails(dl);
+          const key = `${quality}p ${details}`;
+          
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(dl);
+        });
+        
+        // Sort by quality details - Standard first, then alphabetically
+        const sorted = {};
+        Object.keys(groups)
+          .sort((a, b) => {
+            if (a.includes('Standard') && !b.includes('Standard')) return -1;
+            if (!a.includes('Standard') && b.includes('Standard')) return 1;
+            return a.localeCompare(b);
+          })
+          .forEach(k => sorted[k] = groups[k]);
+        
+        return sorted;
       }
 
       function formatSize(bytes) {
@@ -1019,15 +1145,49 @@
         return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
       }
 
+      async function playFromFileId(dl) {
+        if (!dl || !dl.fileId) return;
+        try {
+          const res = await fetch(`/api/get-download?fileId=${encodeURIComponent(dl.fileId)}`);
+          const data = await res.json();
+          if (data.success && data.downloadUrl) {
+            let url = data.downloadUrl;
+            
+            // Update URL with active server if it's a streamwide link
+            const activeServer = await getActiveServer();
+            if (activeServer && url.includes('streamwide.tv')) {
+              url = url.replace(/https:\/\/ant\.out\.p\d+\.streamwide\.tv\//, activeServer);
+            } else if (!activeServer && url.includes('streamwide.tv')) {
+              // No active server available for streamwide links
+              setStatus("❌ سرور در دسترس نیست", "error");
+              return;
+            }
+            
+            play(url);
+          } else {
+            setStatus("❌ خطا در دریافت لینک", "error");
+          }
+        } catch (e) {
+          setStatus("❌ خطا در اتصال", "error");
+        }
+      }
+
       function renderSelection() {
+        console.log('=== renderSelection called ===');
+        console.log('telegramData:', telegramData);
+        console.log('selectionArea:', selectionArea);
+        
         if (!telegramData || !telegramData.downloads) {
-          selectionArea.innerHTML = '';
+          console.log('No telegramData or downloads, clearing selection area');
+          selectionArea.innerHTML = '<div style="padding: 20px; text-align: center; color: #fff;">No data available. Please select a movie from telegram.html first.</div>';
           return;
         }
 
+        console.log('telegramData.downloads:', telegramData.downloads);
         const downloads = telegramData.downloads;
         const isSeries = telegramData.type === "series" || downloads.some(d => d.episode);
         const subTypeGroups = groupBySubType(downloads);
+        console.log('subTypeGroups:', subTypeGroups);
 
         let html = '<div class="selection-area">';
 
@@ -1035,7 +1195,7 @@
           html += `
             <div class="step-header">
               <span class="step-num">1</span>
-              <span class="step-title">انتخاب نوع</span>
+              <span class="step-title">Select Type</span>
             </div>
             <div class="type-grid">
           `;
@@ -1049,7 +1209,7 @@
                 <span class="icon">${group.icon}</span>
                 <div class="info">
                   <div class="label">${group.label}</div>
-                  <div class="meta">${qCount} کیفیت • ${isSeries ? epCount + ' قسمت' : group.items.length + ' فایل'}</div>
+                  <div class="meta">${qCount} Qualities • ${isSeries ? epCount + ' Episodes' : group.items.length + ' Files'}</div>
                 </div>
               </div>
             `;
@@ -1067,8 +1227,8 @@
             </div>
             <div class="step-header">
               <span class="step-num">2</span>
-              <span class="step-title">انتخاب کیفیت</span>
-              <span class="back-link" onclick="goBack('type')">← برگشت</span>
+              <span class="step-title">Select Quality</span>
+              <span class="back-link" onclick="goBack('type')">← Back</span>
             </div>
             <div class="quality-grid">
           `;
@@ -1076,10 +1236,45 @@
             const epCount = new Set(items.map(d => d.episode)).size;
             const totalSize = items.reduce((s, d) => s + (d.sizeBytes || 0), 0);
             const avgSize = items.length > 0 ? formatSize(totalSize / items.length) : '';
+            
             html += `
               <div class="quality-card" onclick="selectQuality('${qKey.replace(/'/g, "\\'")}')">
-                <span class="q-name">${qKey}</span>
-                <span class="q-meta">${isSeries ? epCount + ' قسمت' : items.length + ' فایل'}</span>
+                <span class="q-name">${qKey}p</span>
+                <span class="q-meta">${isSeries ? epCount + ' Episodes' : items.length + ' Files'}</span>
+                ${avgSize ? `<span class="q-size">~${avgSize}</span>` : ''}
+              </div>
+            `;
+          }
+          html += '</div>';
+        }
+
+        else if (!selectedQualityDetail) {
+          const group = subTypeGroups[selectedSubType];
+          const qualityGroups = groupByQuality(group.items);
+          const items = qualityGroups[selectedQuality] || [];
+          const detailGroups = groupByQualityDetails(items);
+
+          html += `
+            <div class="current-selection">
+              <span class="sel-tag">${group.icon} ${group.label}</span>
+              <span class="sel-tag">📀 ${selectedQuality}p</span>
+            </div>
+            <div class="step-header">
+              <span class="step-num">3</span>
+              <span class="step-title">Select Quality Type</span>
+              <span class="back-link" onclick="goBack('quality')">← Back</span>
+            </div>
+            <div class="quality-grid">
+          `;
+          for (const [detailKey, detailItems] of Object.entries(detailGroups)) {
+            const epCount = new Set(detailItems.map(d => d.episode)).size;
+            const totalSize = detailItems.reduce((s, d) => s + (d.sizeBytes || 0), 0);
+            const avgSize = detailItems.length > 0 ? formatSize(totalSize / detailItems.length) : '';
+            
+            html += `
+              <div class="quality-card" onclick="selectQualityDetail('${detailKey.replace(/'/g, "\\'")}')">
+                <span class="q-name">${detailKey}</span>
+                <span class="q-meta">${isSeries ? epCount + ' Episodes' : detailItems.length + ' Files'}</span>
                 ${avgSize ? `<span class="q-size">~${avgSize}</span>` : ''}
               </div>
             `;
@@ -1090,24 +1285,27 @@
         else {
           const group = subTypeGroups[selectedSubType];
           const qualityGroups = groupByQuality(group.items);
-          const items = qualityGroups[selectedQuality] || [];
+          const qualityItems = qualityGroups[selectedQuality] || [];
+          const detailGroups = groupByQualityDetails(qualityItems);
+          const items = detailGroups[selectedQualityDetail] || [];
 
           html += `
             <div class="current-selection">
               <span class="sel-tag">${group.icon} ${group.label}</span>
-              <span class="sel-tag">📀 ${selectedQuality}</span>
+              <span class="sel-tag">📀 ${selectedQuality}p</span>
+              <span class="sel-tag">🎯 ${selectedQualityDetail}</span>
             </div>
             <div class="step-header">
-              <span class="step-num">3</span>
-              <span class="step-title">${isSeries ? 'انتخاب قسمت' : 'دانلود'}</span>
-              <span class="back-link" onclick="goBack('quality')">← برگشت</span>
+              <span class="step-num">4</span>
+              <span class="step-title">${isSeries ? 'Select Episode' : 'Play'}</span>
+              <span class="back-link" onclick="goBack('detail')">← Back</span>
             </div>
             <div class="episode-grid">
           `;
 
           items.sort((a, b) => (a.episode || 999) - (b.episode || 999));
           items.forEach((dl, idx) => {
-            const epLabel = dl.episode ? `E${String(dl.episode).padStart(2, '0')}` : (isSeries ? 'DL' : dl.size || 'دانلود');
+            const epLabel = dl.episode ? `E${String(dl.episode).padStart(2, '0')}` : (isSeries ? 'DL' : 'Play');
             html += `
               <div class="ep-card" onclick="playEpisode(${idx})" data-idx="${idx}">
                 <span class="ep-num">${epLabel}</span>
@@ -1119,17 +1317,25 @@
         }
 
         html += '</div>';
+        console.log('Setting selectionArea.innerHTML to:', html);
         selectionArea.innerHTML = html;
       }
 
       window.selectType = function(type) {
         selectedSubType = type;
         selectedQuality = null;
+        selectedQualityDetail = null;
         renderSelection();
       };
 
       window.selectQuality = function(quality) {
         selectedQuality = quality;
+        selectedQualityDetail = null;
+        renderSelection();
+      };
+
+      window.selectQualityDetail = function(qualityDetail) {
+        selectedQualityDetail = qualityDetail;
         renderSelection();
       };
 
@@ -1137,8 +1343,12 @@
         if (level === 'type') {
           selectedSubType = null;
           selectedQuality = null;
+          selectedQualityDetail = null;
         } else if (level === 'quality') {
           selectedQuality = null;
+          selectedQualityDetail = null;
+        } else if (level === 'detail') {
+          selectedQualityDetail = null;
         }
         renderSelection();
       };
@@ -1146,7 +1356,9 @@
       window.playEpisode = function(idx) {
         const group = groupBySubType(telegramData.downloads)[selectedSubType];
         const qualityGroups = groupByQuality(group.items);
-        const items = qualityGroups[selectedQuality] || [];
+        const qualityItems = qualityGroups[selectedQuality] || [];
+        const detailGroups = groupByQualityDetails(qualityItems);
+        const items = detailGroups[selectedQualityDetail] || [];
         items.sort((a, b) => (a.episode || 999) - (b.episode || 999));
         const dl = items[idx];
         if (dl && dl.url) {
@@ -1156,30 +1368,15 @@
         }
       };
 
-      async function playFromFileId(dl) {
-        if (!dl || !dl.fileId) return;
-        try {
-          const res = await fetch(`/api/get-download?fileId=${encodeURIComponent(dl.fileId)}`);
-          const data = await res.json();
-          if (data.success && data.downloadUrl) {
-            play(data.downloadUrl);
-          } else {
-            setStatus("❌ خطا در دریافت لینک", "error");
-          }
-        } catch (e) {
-          setStatus("❌ خطا در اتصال", "error");
-        }
-      }
-
       function initFarsilandPlayer(streamData) {
         if (!streamData || !Array.isArray(streamData.downloads)) return;
         selectionArea.innerHTML = '';
         
         const sorted = streamData.downloads.slice().sort((a, b) => parseInt(b.quality) - parseInt(a.quality));
-        let html = '<div class="selection-area"><div class="step-header"><span class="step-num">📀</span><span class="step-title">انتخاب کیفیت</span></div><div class="episode-grid">';
+        let html = '<div class="selection-area"><div class="step-header"><span class="step-num">📀</span><span class="step-title">Select Quality</span></div><div class="episode-grid">';
         
         sorted.forEach((dl, idx) => {
-          const qLabel = dl.quality ? `${dl.quality}p` : "کیفیت";
+          const qLabel = dl.quality ? `${dl.quality}p` : "Quality";
           const sizePart = dl.size ? ` • ${dl.size}` : "";
           html += `<div class="ep-card" onclick="playFarsiland(${idx})" data-idx="${idx}"><span class="ep-num">${qLabel}</span><span class="ep-size">${dl.size || ''}</span></div>`;
         });
@@ -1704,17 +1901,30 @@
         sourceType = 'telegram';
         try {
           telegramData = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
-          if (telegramData.title) urlInput.placeholder = `پخش: ${telegramData.title}`;
-          backToMovie.style.display = "inline-block";
+          console.log('Loaded telegramData:', telegramData);
+          
+          // Update downloads with active server
+          if (telegramData.downloads) {
+            getActiveServer().then(() => {
+              if (cachedActiveServer) {
+                telegramData.downloads = updateLinksWithActiveServer(telegramData.downloads);
+              }
+              
+              if (telegramData.title) urlInput.placeholder = `پخش: ${telegramData.title}`;
+              backToMovie.style.display = "inline-block";
 
-          if (telegramData.imdbId) {
-            backToMovie.href = `/telegram.html?restore=${telegramData.imdbId}`;
-          } else {
-            backToMovie.href = "/telegram.html";
+              if (telegramData.imdbId) {
+                backToMovie.href = `/telegram.html?restore=${telegramData.imdbId}`;
+              } else {
+                backToMovie.href = "/telegram.html";
+              }
+              console.log('About to call renderSelection');
+              renderSelection();
+              console.log('renderSelection called');
+            });
           }
-          renderSelection();
         } catch (e) {
-          console.error(e);
+          console.error('Error loading telegram data:', e);
         }
       } else {
         sourceType = 'farsiland';
