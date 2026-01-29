@@ -838,7 +838,7 @@
       let selectedSubType = null;
       let selectedQuality = null;
       let selectedQualityDetail = null;
-      let sourceType = null; // 'telegram' or 'farsiland'
+      let sourceType = null; // 'telegram' or 'persian'
 
       // Server management
       let cachedActiveServer = null;
@@ -865,14 +865,14 @@
 
       function updateLinksWithActiveServer(downloads) {
         if (!cachedActiveServer) {
-          // If no active server, remove streamwide links entirely
-          return downloads.filter(dl => !dl.url || !dl.url.includes('streamwide.tv'));
+          // If no active server, remove external links entirely
+          return downloads.filter(dl => !dl.url || !dl.url.includes('external-server.tv'));
         }
         
         return downloads.map(dl => {
-          if (dl.url && dl.url.includes('streamwide.tv')) {
-            // Replace any existing streamwide server with active one
-            dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.streamwide\.tv\//, cachedActiveServer);
+          if (dl.url && dl.url.includes('external-server.tv')) {
+            // Replace any existing external server with active one
+            dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.external-server\.tv\//, cachedActiveServer);
           }
           return dl;
         });
@@ -890,12 +890,12 @@
         player.classList.remove("show");
         setStatus("در حال بارگذاری...", "loading");
 
-        // Update link with active server if it's a streamwide link
+        // Update link with active server if it's an external link
         getActiveServer().then((activeServer) => {
-          if (activeServer && link.includes('streamwide.tv')) {
-            link = link.replace(/https:\/\/ant\.out\.p\d+\.streamwide\.tv\//, activeServer);
-          } else if (!activeServer && link.includes('streamwide.tv')) {
-            // No active server available for streamwide links
+          if (activeServer && link.includes('external-server.tv')) {
+            link = link.replace(/https:\/\/ant\.out\.p\d+\.external-server\.tv\//, activeServer);
+          } else if (!activeServer && link.includes('external-server.tv')) {
+            // No active server available for external links
             loader.classList.remove("show");
             setStatus("❌ سرور در دسترس نیست", "error");
             btn.disabled = false;
@@ -1153,12 +1153,12 @@
           if (data.success && data.downloadUrl) {
             let url = data.downloadUrl;
             
-            // Update URL with active server if it's a streamwide link
+            // Update URL with active server if it's an external link
             const activeServer = await getActiveServer();
-            if (activeServer && url.includes('streamwide.tv')) {
-              url = url.replace(/https:\/\/ant\.out\.p\d+\.streamwide\.tv\//, activeServer);
-            } else if (!activeServer && url.includes('streamwide.tv')) {
-              // No active server available for streamwide links
+            if (activeServer && url.includes('external-server.tv')) {
+              url = url.replace(/https:\/\/ant\.out\.p\d+\.external-server\.tv\//, activeServer);
+            } else if (!activeServer && url.includes('external-server.tv')) {
+              // No active server available for external links
               setStatus("❌ سرور در دسترس نیست", "error");
               return;
             }
@@ -1368,7 +1368,7 @@
         }
       };
 
-      function initFarsilandPlayer(streamData) {
+      function initPersianPlayer(streamData) {
         if (!streamData || !Array.isArray(streamData.downloads)) return;
         selectionArea.innerHTML = '';
         
@@ -1378,13 +1378,13 @@
         sorted.forEach((dl, idx) => {
           const qLabel = dl.quality ? `${dl.quality}p` : "Quality";
           const sizePart = dl.size ? ` • ${dl.size}` : "";
-          html += `<div class="ep-card" onclick="playFarsiland(${idx})" data-idx="${idx}"><span class="ep-num">${qLabel}</span><span class="ep-size">${dl.size || ''}</span></div>`;
+          html += `<div class="ep-card" onclick="playPersian(${idx})" data-idx="${idx}"><span class="ep-num">${qLabel}</span><span class="ep-size">${dl.size || ''}</span></div>`;
         });
         
         html += '</div></div>';
         selectionArea.innerHTML = html;
         
-        window.playFarsiland = function(idx) {
+        window.playPersian = function(idx) {
           document.querySelectorAll('.ep-card').forEach(c => c.classList.remove('active'));
           document.querySelector(`.ep-card[data-idx="${idx}"]`)?.classList.add('active');
           playFromFileId(sorted[idx]);
@@ -1434,7 +1434,7 @@
         if (!imdb) {
           try {
             const td = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
-            const fd = JSON.parse(localStorage.getItem("farsiland-current-stream") || "{}");
+            const fd = JSON.parse(localStorage.getItem("persian-current-stream") || "{}");
             imdb = td.imdbId || fd.imdbId || "";
             season = td.season || fd.season || null;
             title = td.title || fd.title || null;
@@ -1446,7 +1446,7 @@
 
           try {
             const td = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
-            const fd = JSON.parse(localStorage.getItem("farsiland-current-stream") || "{}");
+            const fd = JSON.parse(localStorage.getItem("persian-current-stream") || "{}");
             season = td.season || fd.season || null;
             title = td.title || fd.title || null;
             type = td.type || fd.type || "movie";
@@ -1837,8 +1837,22 @@
         renderSubtitleOverlay();
       }
 
-      $("searchSubBtn").onclick = searchSubtitles;
-      $("imdbInput").onkeypress = e => { if (e.key === "Enter") searchSubtitles(); };
+      $("searchSubBtn").onclick = function() {
+        if (sourceType === 'persian') {
+          setSubStatus("برای فیلم‌های فارسی زیرنویس موجود نیست", "error");
+          return;
+        }
+        searchSubtitles();
+      };
+      $("imdbInput").onkeypress = function(e) {
+        if (e.key === "Enter") {
+          if (sourceType === 'persian') {
+            setSubStatus("برای فیلم‌های فارسی زیرنویس موجود نیست", "error");
+            return;
+          }
+          searchSubtitles();
+        }
+      };
       $("loadSrtBtn").onclick = loadSrtFromUrl;
       $("srtUrlInput").onkeypress = e => { if (e.key === "Enter") loadSrtFromUrl(); };
 
@@ -1876,22 +1890,26 @@
         }
       }
 
-      if (imdbId) {
+      if (imdbId && sourceType !== 'persian') {
+        // Only search subtitles for non-Persian movies with IMDB ID
         $("imdbInput").value = imdbId;
         toggleSubtitlePanel();
         setTimeout(searchSubtitles, 500);
-      } else if (sourceType !== 'farsiland') {
+      } else if (sourceType !== 'persian') {
         // Only auto-search subtitles for non-Persian movies
         try {
           const telegramData = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
-          const farsilandData = JSON.parse(localStorage.getItem("farsiland-current-stream") || "{}");
-          const storedImdb = telegramData.imdbId || farsilandData.imdbId;
+          const persianData = JSON.parse(localStorage.getItem("persian-current-stream") || "{}");
+          const storedImdb = telegramData.imdbId || persianData.imdbId;
           if (storedImdb) {
             $("imdbInput").value = storedImdb;
             toggleSubtitlePanel();
             setTimeout(searchSubtitles, 500);
           }
         } catch (e) {}
+      } else {
+        // For Persian movies, ensure no subtitle search happens
+        console.log('Persian movie detected - skipping subtitle search');
       }
 
       if (autoUrl) {
@@ -1927,9 +1945,9 @@
           console.error('Error loading telegram data:', e);
         }
       } else {
-        sourceType = 'farsiland';
+        sourceType = 'persian';
         try {
-          const streamData = JSON.parse(localStorage.getItem("farsiland-current-stream") || "null");
+          const streamData = JSON.parse(localStorage.getItem("persian-current-stream") || "null");
           if (streamData) {
             if (streamData.title) urlInput.placeholder = `پخش: ${streamData.title}`;
             if (streamData.source) {
@@ -1937,10 +1955,11 @@
               backToMovie.href = streamData.source;
             }
             if (streamData.downloads && streamData.downloads.length) {
-              initFarsilandPlayer(streamData);
+              initPersianPlayer(streamData);
             }
             
-            // Show Persian movie subtitle message
+            // COMPLETELY clear all subtitle cache and prevent any subtitle loading for Persian movies
+            clearAllSubtitleData();
             showPersianMovieSubtitleMessage();
             
             // Keep subtitle panel closed for Persian movies
@@ -1956,22 +1975,71 @@
         }
       }
       
+      function clearAllSubtitleData() {
+        // Clear ALL subtitle-related localStorage data
+        try {
+          // Remove all possible subtitle cache keys
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.includes('subtitle') || key.includes('sub-') || key.includes('imdb'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(key => localStorage.removeItem(key));
+          
+          // Also clear specific known keys
+          localStorage.removeItem('telegram-downloads');
+          localStorage.removeItem('sub-settings');
+        } catch (e) {
+          console.error('Error clearing localStorage:', e);
+        }
+        
+        // Clear all subtitle-related variables
+        subtitleLanguages = [];
+        currentSubtitles = [];
+        currentCacheKey = null;
+        parsedCues = [];
+        subtitleDelay = 0;
+        
+        // Clear all UI elements
+        $("langContainer").innerHTML = "";
+        $("subListContainer").innerHTML = "";
+        $("filePickerContainer").innerHTML = "";
+        
+        // Clear inputs
+        const imdbInput = $("imdbInput");
+        if (imdbInput) imdbInput.value = "";
+        
+        const srtUrlInput = $("srtUrlInput");
+        if (srtUrlInput) srtUrlInput.value = "";
+        
+        // Remove any active subtitle
+        removeSubtitle();
+        
+        // Clear subtitle status
+        setSubStatus("", "");
+      }
+      
       function showPersianMovieSubtitleMessage() {
-        // Clear any previous subtitle cache and UI elements
-        clearSubtitleCache();
-        
-        // Hide the search button and show Persian movie message
+        // Hide the search button completely for Persian movies
         const searchBtn = $("searchSubBtn");
-        const subtitleContent = $("subtitleContent");
-        
         if (searchBtn) {
           searchBtn.style.display = "none";
         }
         
-        // Clear all subtitle-related containers
+        // Clear all subtitle containers first
         $("langContainer").innerHTML = "";
         $("subListContainer").innerHTML = "";
         $("filePickerContainer").innerHTML = "";
+        
+        const subtitleContent = $("subtitleContent");
+        
+        // Remove any existing Persian message
+        const existingMessage = document.getElementById('persianSubtitleMessage');
+        if (existingMessage) {
+          existingMessage.remove();
+        }
         
         // Add Persian movie subtitle message
         const persianMessage = document.createElement('div');
@@ -1999,31 +2067,8 @@
         const firstChild = subtitleContent.firstChild;
         subtitleContent.insertBefore(persianMessage, firstChild);
         
-        // Also update the subtitle status
+        // Update the subtitle status
         setSubStatus("فیلم فارسی - زیرنویس موجود نیست", "error");
-      }
-      
-      function clearSubtitleCache() {
-        // Clear all subtitle-related variables
-        subtitleLanguages = [];
-        currentSubtitles = [];
-        currentCacheKey = null;
-        parsedCues = [];
-        subtitleDelay = 0;
-        
-        // Clear IMDB input
-        const imdbInput = $("imdbInput");
-        if (imdbInput) imdbInput.value = "";
-        
-        // Clear SRT URL input
-        const srtUrlInput = $("srtUrlInput");
-        if (srtUrlInput) srtUrlInput.value = "";
-        
-        // Remove any active subtitle
-        removeSubtitle();
-        
-        // Clear subtitle status
-        setSubStatus("", "");
       }
     </script>
   </body>

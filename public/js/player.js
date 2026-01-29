@@ -17,7 +17,7 @@ if (fileIdFromUrl) {
   }
   playSingleFile(fileIdFromUrl);
 } else {
-  const STREAM_KEY = "farsiland-current-stream";
+  const STREAM_KEY = "persian-current-stream";
 
   function loadStreamData() {
     try {

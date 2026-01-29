@@ -46,14 +46,14 @@ async function getActiveServer() {
 
 function updateLinksWithActiveServer(downloads) {
   if (!cachedActiveServer) {
-    // If no active server, remove streamwide links entirely
-    return downloads.filter(dl => !dl.url || !dl.url.includes('streamwide.tv'));
+    // If no active server, remove external links entirely
+    return downloads.filter(dl => !dl.url || !dl.url.includes('external-server.tv'));
   }
   
   return downloads.map(dl => {
-    if (dl.url && dl.url.includes('streamwide.tv')) {
-      // Replace any existing streamwide server with active one
-      dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.streamwide\.tv\//, cachedActiveServer);
+    if (dl.url && dl.url.includes('external-server.tv')) {
+      // Replace any existing external server with active one
+      dl.url = dl.url.replace(/https:\/\/ant\.out\.p\d+\.external-server\.tv\//, cachedActiveServer);
     }
     return dl;
   });
@@ -190,7 +190,7 @@ async function getDownloadLinks() {
 
   getLinksBtn.disabled = true;
   getLinksBtn.innerHTML = '<span class="loading-text">⏳ Loading...</span>';
-  linksContainer.innerHTML = '<div class="loading active"><div class="loading-spinner"></div><p>Searching StreamWide...</p></div>';
+  linksContainer.innerHTML = '<div class="loading active"><div class="loading-spinner"></div><p>Searching External Database...</p></div>';
 
   try {
     const params = new URLSearchParams({ imdbId: currentImdbId, title: currentTitle || '' });

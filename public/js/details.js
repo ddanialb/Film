@@ -32,7 +32,7 @@ async function loadDetails(url) {
   }
 }
 
-const STREAM_KEY = "farsiland-current-stream";
+const STREAM_KEY = "persian-current-stream";
 
 function openOnlinePlayerWithDownloads(title, downloads) {
   if (!downloads || downloads.length === 0) return;
