@@ -15,6 +15,9 @@ if (!movieUrl) {
 }
 
 async function loadDetails(url) {
+  // Clear previous subtitles when loading new movie
+  clearPreviousSubtitles();
+  
   try {
     const response = await fetch(`/api/details?url=${encodeURIComponent(url)}`);
     const data = await response.json();
@@ -35,7 +38,6 @@ async function loadDetails(url) {
 const STREAM_KEY = "farsiland-current-stream";
 
 // Subtitle management
-let subtitleEnabled = true;
 let currentSubtitles = [];
 let currentVideo = null;
 let subtitleInterval = null;
@@ -67,9 +69,10 @@ function clearPreviousSubtitles() {
   if (subtitleOverlay) {
     subtitleOverlay.remove();
   }
-  // Clear localStorage
-  localStorage.removeItem('current-subtitle-url');
-  localStorage.removeItem('current-subtitles');
+  // Clear localStorage - use page-specific keys
+  const pageKey = window.location.pathname + window.location.search;
+  localStorage.removeItem(`farsi-subtitle-url-${pageKey}`);
+  localStorage.removeItem(`farsi-subtitles-${pageKey}`);
   
   // Clear status and input
   setSubtitleStatus('', '');
@@ -81,22 +84,6 @@ function setSubtitleStatus(message, type) {
   const statusEl = document.getElementById('subtitleStatus');
   statusEl.textContent = message;
   statusEl.className = `subtitle-status ${type}`;
-}
-
-function toggleSubtitle() {
-  subtitleEnabled = !subtitleEnabled;
-  const toggleBtn = document.getElementById('subtitleToggle');
-  const toggleText = document.getElementById('toggleText');
-  
-  if (subtitleEnabled) {
-    toggleBtn.classList.remove('off');
-    toggleText.textContent = 'روشن';
-    document.body.classList.remove('subtitle-hidden');
-  } else {
-    toggleBtn.classList.add('off');
-    toggleText.textContent = 'خاموش';
-    document.body.classList.add('subtitle-hidden');
-  }
 }
 
 async function loadSubtitle() {
@@ -124,9 +111,10 @@ async function loadSubtitle() {
       throw new Error('فایل زیرنویس خالی است');
     }
     
-    // Save to localStorage
-    localStorage.setItem('current-subtitle-url', url);
-    localStorage.setItem('current-subtitles', JSON.stringify(currentSubtitles));
+    // Save to localStorage with page-specific key
+    const pageKey = window.location.pathname + window.location.search;
+    localStorage.setItem(`farsi-subtitle-url-${pageKey}`, url);
+    localStorage.setItem(`farsi-subtitles-${pageKey}`, JSON.stringify(currentSubtitles));
     
     setSubtitleStatus(`✅ زیرنویس بارگذاری شد (${currentSubtitles.length} خط)`, 'success');
     
@@ -193,7 +181,7 @@ function applySubtitleToCurrentVideo() {
   
   // Start subtitle sync
   subtitleInterval = setInterval(() => {
-    if (!currentVideo || !subtitleEnabled) return;
+    if (!currentVideo) return;
     
     const currentTime = currentVideo.currentTime;
     const subtitleText = document.getElementById('videoSubtitleText');
@@ -213,8 +201,9 @@ function applySubtitleToCurrentVideo() {
 
 // Load saved subtitle on page load
 function loadSavedSubtitle() {
-  const savedUrl = localStorage.getItem('current-subtitle-url');
-  const savedSubtitles = localStorage.getItem('current-subtitles');
+  const pageKey = window.location.pathname + window.location.search;
+  const savedUrl = localStorage.getItem(`farsi-subtitle-url-${pageKey}`);
+  const savedSubtitles = localStorage.getItem(`farsi-subtitles-${pageKey}`);
   
   if (savedUrl && savedSubtitles) {
     try {
@@ -223,8 +212,8 @@ function loadSavedSubtitle() {
       setSubtitleStatus(`✅ زیرنویس بازیابی شد (${currentSubtitles.length} خط)`, 'success');
     } catch (e) {
       // Clear invalid data
-      localStorage.removeItem('current-subtitle-url');
-      localStorage.removeItem('current-subtitles');
+      localStorage.removeItem(`farsi-subtitle-url-${pageKey}`);
+      localStorage.removeItem(`farsi-subtitles-${pageKey}`);
     }
   }
 }
