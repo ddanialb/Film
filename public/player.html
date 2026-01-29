@@ -1880,8 +1880,8 @@
         $("imdbInput").value = imdbId;
         toggleSubtitlePanel();
         setTimeout(searchSubtitles, 500);
-      } else {
-
+      } else if (sourceType !== 'farsiland') {
+        // Only auto-search subtitles for non-Persian movies
         try {
           const telegramData = JSON.parse(localStorage.getItem("telegram-downloads") || "{}");
           const farsilandData = JSON.parse(localStorage.getItem("farsiland-current-stream") || "{}");
@@ -1942,6 +1942,14 @@
             
             // Show Persian movie subtitle message
             showPersianMovieSubtitleMessage();
+            
+            // Keep subtitle panel closed for Persian movies
+            const subtitleContent = $("subtitleContent");
+            const toggle = $("subToggle");
+            if (subtitleContent && toggle) {
+              subtitleContent.classList.remove("show");
+              toggle.textContent = "▼ باز کردن";
+            }
           }
         } catch (e) {
           console.error(e);
@@ -1949,6 +1957,9 @@
       }
       
       function showPersianMovieSubtitleMessage() {
+        // Clear any previous subtitle cache and UI elements
+        clearSubtitleCache();
+        
         // Hide the search button and show Persian movie message
         const searchBtn = $("searchSubBtn");
         const subtitleContent = $("subtitleContent");
@@ -1956,6 +1967,11 @@
         if (searchBtn) {
           searchBtn.style.display = "none";
         }
+        
+        // Clear all subtitle-related containers
+        $("langContainer").innerHTML = "";
+        $("subListContainer").innerHTML = "";
+        $("filePickerContainer").innerHTML = "";
         
         // Add Persian movie subtitle message
         const persianMessage = document.createElement('div');
@@ -1985,6 +2001,29 @@
         
         // Also update the subtitle status
         setSubStatus("فیلم فارسی - زیرنویس موجود نیست", "error");
+      }
+      
+      function clearSubtitleCache() {
+        // Clear all subtitle-related variables
+        subtitleLanguages = [];
+        currentSubtitles = [];
+        currentCacheKey = null;
+        parsedCues = [];
+        subtitleDelay = 0;
+        
+        // Clear IMDB input
+        const imdbInput = $("imdbInput");
+        if (imdbInput) imdbInput.value = "";
+        
+        // Clear SRT URL input
+        const srtUrlInput = $("srtUrlInput");
+        if (srtUrlInput) srtUrlInput.value = "";
+        
+        // Remove any active subtitle
+        removeSubtitle();
+        
+        // Clear subtitle status
+        setSubStatus("", "");
       }
     </script>
   </body>
