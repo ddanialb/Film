@@ -5,6 +5,12 @@ const movieInfo = document.getElementById("movie-info");
 const seasonsContainer = document.getElementById("seasons");
 const downloadsContainer = document.getElementById("downloads");
 
+// Subtitle management variables - moved to top to avoid temporal dead zone
+let currentSubtitles = [];
+let currentVideo = null;
+let subtitleInterval = null;
+let subtitlePanelExpanded = false;
+
 const urlParams = new URLSearchParams(window.location.search);
 const movieUrl = urlParams.get("url");
 
@@ -36,12 +42,6 @@ async function loadDetails(url) {
 }
 
 const STREAM_KEY = "farsiland-current-stream";
-
-// Subtitle management
-let currentSubtitles = [];
-let currentVideo = null;
-let subtitleInterval = null;
-let subtitlePanelExpanded = false;
 
 function toggleSubtitlePanel() {
   subtitlePanelExpanded = !subtitlePanelExpanded;
