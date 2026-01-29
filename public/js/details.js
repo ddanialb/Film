@@ -5,12 +5,6 @@ const movieInfo = document.getElementById("movie-info");
 const seasonsContainer = document.getElementById("seasons");
 const downloadsContainer = document.getElementById("downloads");
 
-// Subtitle management variables - moved to top to avoid temporal dead zone
-let currentSubtitles = [];
-let currentVideo = null;
-let subtitleInterval = null;
-let subtitlePanelExpanded = false;
-
 const urlParams = new URLSearchParams(window.location.search);
 const movieUrl = urlParams.get("url");
 
@@ -21,9 +15,6 @@ if (!movieUrl) {
 }
 
 async function loadDetails(url) {
-  // Clear previous subtitles when loading new movie
-  clearPreviousSubtitles();
-  
   try {
     const response = await fetch(`/api/details?url=${encodeURIComponent(url)}`);
     const data = await response.json();
@@ -42,181 +33,6 @@ async function loadDetails(url) {
 }
 
 const STREAM_KEY = "farsiland-current-stream";
-
-function toggleSubtitlePanel() {
-  subtitlePanelExpanded = !subtitlePanelExpanded;
-  const content = document.getElementById('subtitleContent');
-  const indicator = document.getElementById('expandIndicator');
-  
-  if (subtitlePanelExpanded) {
-    content.classList.add('expanded');
-    indicator.classList.add('expanded');
-  } else {
-    content.classList.remove('expanded');
-    indicator.classList.remove('expanded');
-  }
-}
-
-function clearPreviousSubtitles() {
-  // Clear any existing subtitle data
-  currentSubtitles = [];
-  if (subtitleInterval) {
-    clearInterval(subtitleInterval);
-    subtitleInterval = null;
-  }
-  // Clear subtitle display
-  const subtitleOverlay = document.querySelector('.video-subtitle-overlay');
-  if (subtitleOverlay) {
-    subtitleOverlay.remove();
-  }
-  // Clear localStorage - use page-specific keys
-  const pageKey = window.location.pathname + window.location.search;
-  localStorage.removeItem(`farsi-subtitle-url-${pageKey}`);
-  localStorage.removeItem(`farsi-subtitles-${pageKey}`);
-  
-  // Clear status and input
-  setSubtitleStatus('', '');
-  const input = document.getElementById('subtitleInput');
-  if (input) input.value = '';
-}
-
-function setSubtitleStatus(message, type) {
-  const statusEl = document.getElementById('subtitleStatus');
-  statusEl.textContent = message;
-  statusEl.className = `subtitle-status ${type}`;
-}
-
-async function loadSubtitle() {
-  const input = document.getElementById('subtitleInput');
-  const url = input.value.trim();
-  
-  if (!url) {
-    setSubtitleStatus('لطفاً لینک زیرنویس را وارد کنید', 'error');
-    return;
-  }
-  
-  setSubtitleStatus('در حال بارگذاری زیرنویس...', 'loading');
-  
-  try {
-    // Clear previous subtitles first
-    clearPreviousSubtitles();
-    
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('خطا در دریافت فایل');
-    
-    const srtText = await response.text();
-    currentSubtitles = parseSRT(srtText);
-    
-    if (currentSubtitles.length === 0) {
-      throw new Error('فایل زیرنویس خالی است');
-    }
-    
-    // Save to localStorage with page-specific key
-    const pageKey = window.location.pathname + window.location.search;
-    localStorage.setItem(`farsi-subtitle-url-${pageKey}`, url);
-    localStorage.setItem(`farsi-subtitles-${pageKey}`, JSON.stringify(currentSubtitles));
-    
-    setSubtitleStatus(`✅ زیرنویس بارگذاری شد (${currentSubtitles.length} خط)`, 'success');
-    
-    // Apply to current video if exists
-    applySubtitleToCurrentVideo();
-    
-  } catch (error) {
-    setSubtitleStatus(`❌ خطا: ${error.message}`, 'error');
-  }
-}
-
-function parseSRT(srtText) {
-  const subtitles = [];
-  const blocks = srtText.trim().split(/\n\s*\n/);
-  
-  blocks.forEach(block => {
-    const lines = block.trim().split('\n');
-    if (lines.length >= 3) {
-      const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/);
-      if (timeMatch) {
-        const startTime = parseTimeToSeconds(timeMatch[1]);
-        const endTime = parseTimeToSeconds(timeMatch[2]);
-        const text = lines.slice(2).join('\n').replace(/<[^>]*>/g, '');
-        
-        subtitles.push({
-          start: startTime,
-          end: endTime,
-          text: text
-        });
-      }
-    }
-  });
-  
-  return subtitles;
-}
-
-function parseTimeToSeconds(timeStr) {
-  const [time, ms] = timeStr.split(',');
-  const [hours, minutes, seconds] = time.split(':').map(Number);
-  return hours * 3600 + minutes * 60 + seconds + ms / 1000;
-}
-
-function applySubtitleToCurrentVideo() {
-  // Find video element
-  const videos = document.querySelectorAll('video');
-  if (videos.length === 0) return;
-  
-  currentVideo = videos[0];
-  
-  // Create subtitle overlay if not exists
-  let subtitleOverlay = currentVideo.parentElement.querySelector('.video-subtitle-overlay');
-  if (!subtitleOverlay) {
-    subtitleOverlay = document.createElement('div');
-    subtitleOverlay.className = 'video-subtitle-overlay';
-    subtitleOverlay.innerHTML = '<div class="video-subtitle-text" id="videoSubtitleText"></div>';
-    currentVideo.parentElement.style.position = 'relative';
-    currentVideo.parentElement.appendChild(subtitleOverlay);
-  }
-  
-  // Clear existing interval
-  if (subtitleInterval) {
-    clearInterval(subtitleInterval);
-  }
-  
-  // Start subtitle sync
-  subtitleInterval = setInterval(() => {
-    if (!currentVideo) return;
-    
-    const currentTime = currentVideo.currentTime;
-    const subtitleText = document.getElementById('videoSubtitleText');
-    if (!subtitleText) return;
-    
-    const currentSubtitle = currentSubtitles.find(sub => 
-      currentTime >= sub.start && currentTime <= sub.end
-    );
-    
-    if (currentSubtitle) {
-      subtitleText.textContent = currentSubtitle.text;
-    } else {
-      subtitleText.textContent = '';
-    }
-  }, 100);
-}
-
-// Load saved subtitle on page load
-function loadSavedSubtitle() {
-  const pageKey = window.location.pathname + window.location.search;
-  const savedUrl = localStorage.getItem(`farsi-subtitle-url-${pageKey}`);
-  const savedSubtitles = localStorage.getItem(`farsi-subtitles-${pageKey}`);
-  
-  if (savedUrl && savedSubtitles) {
-    try {
-      document.getElementById('subtitleInput').value = savedUrl;
-      currentSubtitles = JSON.parse(savedSubtitles);
-      setSubtitleStatus(`✅ زیرنویس بازیابی شد (${currentSubtitles.length} خط)`, 'success');
-    } catch (e) {
-      // Clear invalid data
-      localStorage.removeItem(`farsi-subtitle-url-${pageKey}`);
-      localStorage.removeItem(`farsi-subtitles-${pageKey}`);
-    }
-  }
-}
 
 function openOnlinePlayerWithDownloads(title, downloads) {
   if (!downloads || downloads.length === 0) return;
@@ -368,12 +184,6 @@ function showDetails(data) {
       downloads: data.downloads,
     });
   }
-  
-  // Load saved subtitle and apply to any video
-  loadSavedSubtitle();
-  setTimeout(() => {
-    applySubtitleToCurrentVideo();
-  }, 1000);
 }
 
 function showSeasons(seasons) {
@@ -481,11 +291,6 @@ async function loadEpisode(seasonIndex, episodeIndex, encodedUrl) {
       });
       onlineWrapper.appendChild(onlineBtn);
       linksContainer.parentElement.insertBefore(onlineWrapper, linksContainer);
-      
-      // Apply subtitle to any new video elements
-      setTimeout(() => {
-        applySubtitleToCurrentVideo();
-      }, 500);
     } else {
       linksContainer.innerHTML =
         '<p class="no-links">❌ لینک دانلود یافت نشد</p>';
