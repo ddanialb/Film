@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const crypto = require("crypto");
+const AutoTokenRefresh = require("../auto_token_refresh");
 
 const router = express.Router();
 
@@ -180,6 +181,7 @@ try {
 } catch(e) {}
 
 let client = null;
+let autoTokenRefresh = null;
 let isConnected = false;
 let isLoggingIn = false;
 let isConnecting = false;
@@ -271,6 +273,8 @@ async function initClient() {
     client = new TelegramClient(stringSession, apiId, apiHash, clientOptions);
 
     await client.connect();
+    
+        autoTokenRefresh = new AutoTokenRefresh(client);
     
     const authorized = await client.isUserAuthorized();
     if (authorized) {
@@ -486,6 +490,14 @@ async function generateInitData(botId) {
 }
 
 async function authenticateStreamWide(initDataRaw = null) {
+  if (autoTokenRefresh && client && isConnected && streamwideRefreshToken) {
+    const newToken = await autoTokenRefresh.autoRefreshToken(streamwideRefreshToken);
+    if (newToken && newToken !== streamwideRefreshToken) {
+      streamwideRefreshToken = newToken;
+      process.env.STREAMWIDE_REFRESH_TOKEN = newToken;
+    }
+  }
+
   if (streamwideToken && Date.now() < tokenExpiry) {
     return streamwideToken;
   }
@@ -508,6 +520,32 @@ async function authenticateStreamWide(initDataRaw = null) {
       }
     } catch (e) {
       console.log("⚠️ Refresh failed:", e.response?.data || e.message);
+      
+      if (autoTokenRefresh && client && isConnected) {
+        try {
+          const newToken = await autoTokenRefresh.autoRefreshToken(streamwideRefreshToken);
+          if (newToken && newToken !== streamwideRefreshToken) {
+            streamwideRefreshToken = newToken;
+            process.env.STREAMWIDE_REFRESH_TOKEN = newToken;
+            
+            const retryResponse = await axios.post(`${STREAMWIDE_API}/accounts/token/refresh/`, {
+              refresh: streamwideRefreshToken,
+            }, {
+              headers: { "Content-Type": "application/json" },
+              timeout: 10000,
+            });
+
+            if (retryResponse.data.access) {
+              streamwideToken = retryResponse.data.access;
+              tokenExpiry = Date.now() + 600000;
+              console.log("✅ Token refreshed with new token");
+              return streamwideToken;
+            }
+          }
+        } catch (autoError) {
+          console.log("❌ Auto refresh error:", autoError.message);
+        }
+      }
     }
   }
 
